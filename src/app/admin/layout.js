@@ -43,7 +43,6 @@ export default function AdminLayout({ children }) {
   };
 
   const handleLogout = () => {
-    // Simulação de logout
     router.push('/');
   };
 
@@ -84,12 +83,13 @@ export default function AdminLayout({ children }) {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <AppBar
         position="fixed"
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          backgroundColor: '#1B5E20',
         }}
       >
         <Toolbar>
@@ -120,7 +120,11 @@ export default function AdminLayout({ children }) {
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              backgroundColor: '#F5F9F5'
+            },
           }}
         >
           {drawer}
@@ -129,7 +133,12 @@ export default function AdminLayout({ children }) {
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              backgroundColor: '#FFFFFF',
+              borderRight: '1px solid #E0E0E0'
+            },
           }}
           open
         >
@@ -142,10 +151,12 @@ export default function AdminLayout({ children }) {
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
+          minHeight: '100vh',
+          backgroundColor: '#F5F9F5',
         }}
       >
-        <Toolbar />
-        <Container maxWidth="lg">
+        <Toolbar /> 
+        <Container maxWidth="lg" sx={{ mt: 2 }}>
           {children}
         </Container>
       </Box>

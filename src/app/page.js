@@ -6,8 +6,6 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import EventIcon from '@mui/icons-material/Event';
-import NatureIcon from '@mui/icons-material/Nature'; 
-
 
 export default function HomePage() {
   return (
