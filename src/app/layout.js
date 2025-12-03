@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import './globals.css';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import { Providers } from "./providers";
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -47,10 +48,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
       <head>
-        <title>Nosso Site - Tons Verdes</title>
-        <meta name="description" content="Site em tons verdes" />
+        <title>Vento Musical</title>
+        <meta name="description" content="Levando musica para todo lugar" />
       </head>
       <body className={inter.className}>
+        <Providers>
         <ThemeProvider theme={theme}>
           <CssBaseline />
           {!isAdminRoute && <Header />}
@@ -65,6 +67,7 @@ export default function RootLayout({ children }) {
           
           {!isAdminRoute && <Footer />}
         </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

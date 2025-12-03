@@ -13,8 +13,10 @@ import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import EventIcon from '@mui/icons-material/Event';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto'; 
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import { useSession, signIn, signOut } from "next-auth/react";
 
 export default function AdminDashboard() {
+  const { data: session, status } = useSession();
   const stats = [
     { title: 'Fotos na Galeria', value: '24', icon: <PhotoLibraryIcon />, color: '#1976d2' },
     { title: 'Eventos Cadastrados', value: '6', icon: <EventIcon />, color: '#2e7d32' },
