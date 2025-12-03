@@ -27,15 +27,19 @@ export async function middleware(req) {
     pathname.startsWith("/admin/fotos") ||
     pathname.startsWith("/admin/eventos");
 
+    console.log("estou aqui 1");
+
   if (rotaProtegida && !token) {
     const url = new URL("/login", req.url);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
   }
 
+  console.log("estou aqui 2");
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin", "/admin/:path*"],
 };

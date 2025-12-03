@@ -13,7 +13,7 @@ import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import EventIcon from '@mui/icons-material/Event';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto'; 
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession} from "next-auth/react";
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
