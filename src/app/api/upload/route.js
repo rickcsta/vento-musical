@@ -10,12 +10,10 @@ export async function POST(req) {
       return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
     }
 
-    // Nome único da imagem
     const filename = `${Date.now()}-${file.name}`;
 
-    // Envia para o Blob
     const blob = await put(filename, file, {
-      access: "public", // permite URL pública
+      access: "public",
     });
 
     return NextResponse.json({ url: blob.url });

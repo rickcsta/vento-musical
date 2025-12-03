@@ -9,9 +9,10 @@ export async function GET() {
       LEFT JOIN evento e ON f.evento_id = e.id
       ORDER BY f.id ASC
     `);
+
     return NextResponse.json(res.rows);
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     return NextResponse.json({ error: "Erro ao buscar fotos" }, { status: 500 });
   }
 }
