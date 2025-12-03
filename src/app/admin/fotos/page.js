@@ -4,11 +4,15 @@ import { useState, useEffect } from 'react';
 import {
   Container, Paper, Typography, Button, Box, Grid, Card, CardMedia, CardContent,
   IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Alert, Snackbar, MenuItem, Select, InputLabel, FormControl, CircularProgress
+  Alert, Snackbar, MenuItem, Select, InputLabel, FormControl, CircularProgress,
+  Chip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import EventIcon from '@mui/icons-material/Event';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 export default function GerenciarFotos() {
   const [fotos, setFotos] = useState([]);
@@ -25,27 +29,47 @@ export default function GerenciarFotos() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
   const [openConfirmDelete, setOpenConfirmDelete] = useState(false);
   const [fotoParaExcluir, setFotoParaExcluir] = useState(null);
 
+  // Carregar dados
   useEffect(() => {
-    fetch("/api/fotos/exibir")
-      .then(res => res.json())
-      .then(data => setFotos(data))
-      .catch(err => console.error(err));
-
-    fetch("/api/eventos/exibir")
-      .then(res => res.json())
-      .then(data => setEventos(data.evento || []))
-      .catch(err => console.error(err));
+    carregarDados();
   }, []);
+
+  const carregarDados = async () => {
+    try {
+      setLoadingData(true);
+      
+      const [resFotos, resEventos] = await Promise.all([
+        fetch("/api/fotos/exibir"),
+        fetch("/api/evento/exibir")
+      ]);
+      
+      if (!resFotos.ok) throw new Error('Erro ao carregar fotos');
+      if (!resEventos.ok) throw new Error('Erro ao carregar eventos');
+      
+      const dadosFotos = await resFotos.json();
+      const dadosEventos = await resEventos.json();
+      
+      setFotos(dadosFotos);
+      setEventos(dadosEventos);
+    } catch (err) {
+      console.error(err);
+      setSnackbarMessage('Erro ao carregar dados');
+      setOpenSnackbar(true);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const handleOpenDialog = (foto = null) => {
     if (foto) {
       setEditingPhoto(foto);
       setNovaFoto({
-        titulo: foto.titulo,
+        titulo: foto.titulo || '',
         descricao: foto.descricao || '',
         data_evento: foto.data_evento?.split('T')[0] || '',
         evento_id: foto.evento_id || '',
@@ -53,7 +77,13 @@ export default function GerenciarFotos() {
       });
     } else {
       setEditingPhoto(null);
-      setNovaFoto({ titulo: '', descricao: '', data_evento: '', evento_id: '', file: null });
+      setNovaFoto({ 
+        titulo: '', 
+        descricao: '', 
+        data_evento: '', 
+        evento_id: '', 
+        file: null 
+      });
     }
     setOpenDialog(true);
   };
@@ -76,46 +106,70 @@ export default function GerenciarFotos() {
     try {
       setLoading(true);
 
-      const formData = new FormData();
-      formData.append("titulo", novaFoto.titulo);
-      formData.append("descricao", novaFoto.descricao);
-      formData.append("data_evento", novaFoto.data_evento);
-      formData.append("evento_id", novaFoto.evento_id);
+      // Se tem arquivo, faz upload primeiro
+      let url_img = editingPhoto?.url;
+      
+      if (novaFoto.file) {
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", novaFoto.file);
 
-      if (editingPhoto) formData.append("id", editingPhoto.id);
-      if (novaFoto.file) formData.append("file", novaFoto.file);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formDataUpload
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error('Erro no upload da imagem');
+        }
+
+        const uploadData = await uploadRes.json();
+        url_img = uploadData.url;
+      }
+
+      // Prepara os dados da foto
+      const fotoData = {
+        titulo: novaFoto.titulo,
+        descricao: novaFoto.descricao,
+        data_evento: novaFoto.data_evento || null,
+        evento_id: novaFoto.evento_id || null,
+        url_img: url_img
+      };
+
+      if (editingPhoto) {
+        fotoData.id = editingPhoto.id;
+      }
 
       const res = await fetch("/api/fotos/editar", {
         method: editingPhoto ? "PUT" : "POST",
-        body: formData
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fotoData)
       });
 
       const saved = await res.json();
 
       if (res.ok) {
-        if (editingPhoto) {
-          setFotos(fotos.map(f => (f.id === saved.id ? saved : f)));
-          setSnackbarMessage("Foto atualizada com sucesso!");
-        } else {
-          setFotos([...fotos, saved]);
-          setSnackbarMessage("Foto adicionada com sucesso!");
-        }
+        await carregarDados(); // Recarrega os dados
+        
+        setSnackbarMessage(
+          editingPhoto 
+            ? "Foto atualizada com sucesso!" 
+            : "Foto adicionada com sucesso!"
+        );
+        setOpenSnackbar(true);
+        handleCloseDialog();
       } else {
-        setSnackbarMessage("Erro ao salvar foto.");
+        setSnackbarMessage("Erro ao salvar foto: " + (saved.error || ''));
+        setOpenSnackbar(true);
       }
-
-      setOpenSnackbar(true);
-      handleCloseDialog();
     } catch (err) {
       console.error(err);
-      setSnackbarMessage("Erro inesperado.");
+      setSnackbarMessage("Erro inesperado: " + err.message);
       setOpenSnackbar(true);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🚨 FUNÇÃO CORRIGIDA DE EXCLUSÃO COM CONFIRMAÇÃO
   const confirmarExclusao = async () => {
     if (!fotoParaExcluir) return;
 
@@ -127,24 +181,44 @@ export default function GerenciarFotos() {
       });
 
       if (res.ok) {
-        setFotos(fotos.filter(f => f.id !== fotoParaExcluir.id));
+        await carregarDados(); // Recarrega os dados
         setSnackbarMessage("Foto excluída com sucesso!");
       } else {
-        setSnackbarMessage("Erro ao excluir a foto.");
+        const errorData = await res.json();
+        setSnackbarMessage("Erro ao excluir a foto: " + (errorData.error || ''));
       }
 
       setOpenSnackbar(true);
     } catch (err) {
       console.error(err);
+      setSnackbarMessage("Erro na conexão");
+      setOpenSnackbar(true);
     }
 
     setOpenConfirmDelete(false);
     setFotoParaExcluir(null);
   };
 
+  // Função para formatar data
+  const formatarData = (dataString) => {
+    if (!dataString) return 'Sem data';
+    
+    try {
+      const data = new Date(dataString);
+      return data.toLocaleDateString('pt-BR');
+    } catch {
+      return dataString;
+    }
+  };
+
+  // Encontrar informações do evento
+  const getEventoInfo = (eventoId) => {
+    return eventos.find(e => e.id === eventoId);
+  };
+
   return (
     <Container maxWidth="lg">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
         <div>
           <Typography variant="h4">Gerenciar Fotos</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -152,93 +226,305 @@ export default function GerenciarFotos() {
           </Typography>
         </div>
 
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+        <Button 
+          variant="contained" 
+          startIcon={<AddIcon />} 
+          onClick={() => handleOpenDialog()}
+          disabled={loadingData}
+        >
           Adicionar Foto
         </Button>
       </Box>
 
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" sx={{ mb: 3 }}>Fotos ({fotos.length})</Typography>
+      {loadingData ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6">
+              Fotos ({fotos.length})
+            </Typography>
+            
+            {fotos.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Nenhuma foto cadastrada
+              </Typography>
+            )}
+          </Box>
 
-        <Grid container spacing={3}>
-          {fotos.map(foto => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={foto.id}>
-              <Card>
-                <CardMedia component="img" height="140" image={foto.url_img} />
-                <CardContent>
-                  <Typography noWrap>{foto.titulo}</Typography>
+          <Grid container spacing={3}>
+            {fotos.map(foto => {
+              const eventoInfo = getEventoInfo(foto.evento_id);
+              
+              return (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={foto.id}>
+                  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardMedia 
+                      component="img" 
+                      height="160" 
+                      image={foto.url} 
+                      alt={foto.titulo}
+                      sx={{ objectFit: 'cover' }}
+                    />
+                    
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Typography variant="subtitle1" noWrap gutterBottom>
+                        {foto.titulo || 'Sem título'}
+                      </Typography>
+                      
+                      {foto.descricao && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {foto.descricao.length > 60 
+                            ? `${foto.descricao.substring(0, 60)}...` 
+                            : foto.descricao}
+                        </Typography>
+                      )}
+                      
+                      <Box sx={{ mb: 2 }}>
+                        {eventoInfo && (
+                          <Chip 
+                            icon={<EventIcon />}
+                            label={eventoInfo.titulo}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ mb: 0.5 }}
+                          />
+                        )}
+                        
+                        {foto.data_evento && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                            <CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5, color: 'text.secondary' }} />
+                            <Typography variant="caption" color="text.secondary">
+                              {formatarData(foto.data_evento)}
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        {eventoInfo?.local && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                            <LocationOnIcon sx={{ fontSize: 14, mr: 0.5, color: 'text.secondary' }} />
+                            <Typography variant="caption" color="text.secondary">
+                              {eventoInfo.local}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
 
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                    <IconButton onClick={() => handleOpenDialog(foto)}>
-                      <EditIcon />
-                    </IconButton>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 'auto' }}>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleOpenDialog(foto)}
+                          title="Editar foto"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
 
-                    <IconButton
-                      color="error"
-                      onClick={() => {
-                        setFotoParaExcluir(foto);
-                        setOpenConfirmDelete(true);
-                      }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => {
+                            setFotoParaExcluir(foto);
+                            setOpenConfirmDelete(true);
+                          }}
+                          title="Excluir foto"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
+        </Paper>
+      )}
 
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>{editingPhoto ? "Editar Foto" : "Adicionar Foto"}</DialogTitle>
+      {/* Diálogo para adicionar/editar foto */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingPhoto ? "Editar Foto" : "Adicionar Nova Foto"}
+        </DialogTitle>
+        
         <DialogContent>
-          <TextField fullWidth label="Título" value={novaFoto.titulo} onChange={handleChange("titulo")} sx={{ mt: 2 }} />
-          <TextField fullWidth label="Descrição" value={novaFoto.descricao} onChange={handleChange("descricao")} sx={{ mt: 2 }} />
-          <TextField fullWidth type="date" value={novaFoto.data_evento} onChange={handleChange("data_evento")} sx={{ mt: 2 }} />
+          <TextField 
+            fullWidth 
+            label="Título da foto" 
+            value={novaFoto.titulo} 
+            onChange={handleChange("titulo")} 
+            sx={{ mt: 2 }}
+            required
+            helperText="Título que aparecerá na galeria"
+          />
+          
+          <TextField 
+            fullWidth 
+            label="Descrição" 
+            value={novaFoto.descricao} 
+            onChange={handleChange("descricao")} 
+            sx={{ mt: 2 }}
+            multiline
+            rows={3}
+            helperText="Descrição opcional da foto"
+          />
+          
+          <TextField 
+            fullWidth 
+            type="date" 
+            label="Data da foto"
+            value={novaFoto.data_evento} 
+            onChange={handleChange("data_evento")} 
+            sx={{ mt: 2 }}
+            InputLabelProps={{ shrink: true }}
+            helperText="Data em que a foto foi tirada"
+          />
 
           <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Evento</InputLabel>
-            <Select value={novaFoto.evento_id} onChange={handleChange("evento_id")} label="Evento">
+            <InputLabel>Evento associado</InputLabel>
+            <Select 
+              value={novaFoto.evento_id} 
+              onChange={handleChange("evento_id")} 
+              label="Evento associado"
+            >
+              <MenuItem value="">
+                <em>Nenhum evento</em>
+              </MenuItem>
               {eventos.map(ev => (
-                <MenuItem key={ev.id} value={ev.id}>{ev.titulo}</MenuItem>
+                <MenuItem key={ev.id} value={ev.id}>
+                  {ev.titulo} {ev.data_evento ? `(${formatarData(ev.data_evento)})` : ''}
+                </MenuItem>
               ))}
             </Select>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+              Opcional. Associe esta foto a um evento específico.
+            </Typography>
           </FormControl>
 
-          <TextField fullWidth type="file" onChange={handleChange("file")} sx={{ mt: 2 }} />
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" gutterBottom>
+              {editingPhoto ? "Substituir imagem (opcional)" : "Selecionar imagem *"}
+            </Typography>
+            
+            <Button 
+              variant="outlined" 
+              component="label"
+              fullWidth
+            >
+              {editingPhoto ? "Escolher nova imagem" : "Escolher imagem"}
+              <input 
+                type="file" 
+                hidden 
+                accept="image/*"
+                onChange={handleChange("file")} 
+              />
+            </Button>
+            
+            {novaFoto.file && (
+              <Typography variant="caption" color="primary" sx={{ mt: 1, display: 'block' }}>
+                Arquivo selecionado: {novaFoto.file.name}
+              </Typography>
+            )}
+            
+            {editingPhoto && !novaFoto.file && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                A imagem atual será mantida
+              </Typography>
+            )}
+            
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Formatos suportados: JPG, PNG, GIF. Tamanho máximo: 5MB.
+            </Typography>
+          </Box>
         </DialogContent>
 
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSavePhoto} disabled={loading}>
-            {loading ? <CircularProgress size={22} /> : (editingPhoto ? "Atualizar" : "Salvar")}
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCloseDialog} disabled={loading}>
+            Cancelar
+          </Button>
+          
+          <Button 
+            variant="contained" 
+            onClick={handleSavePhoto} 
+            disabled={loading || (!editingPhoto && !novaFoto.file)}
+          >
+            {loading ? (
+              <CircularProgress size={24} />
+            ) : editingPhoto ? (
+              "Atualizar"
+            ) : (
+              "Salvar Foto"
+            )}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* MODAL DE CONFIRMAR EXCLUSÃO */}
-      <Dialog open={openConfirmDelete} onClose={() => setOpenConfirmDelete(false)}>
-        <DialogTitle>Excluir Foto</DialogTitle>
-
+      {/* Modal de confirmação de exclusão */}
+      <Dialog 
+        open={openConfirmDelete} 
+        onClose={() => setOpenConfirmDelete(false)}
+      >
+        <DialogTitle>Confirmar Exclusão</DialogTitle>
+        
         <DialogContent>
-          <Typography>
-            Tem certeza que deseja excluir <strong>{fotoParaExcluir?.titulo}</strong>?<br />
-            Essa ação não pode ser desfeita.
+          <Typography gutterBottom>
+            Tem certeza que deseja excluir a foto <strong>"{fotoParaExcluir?.titulo || 'Sem título'}"</strong>?
           </Typography>
+          
+          <Typography variant="body2" color="text.secondary">
+            Esta ação não pode ser desfeita. A imagem também será removida do armazenamento.
+          </Typography>
+          
+          {fotoParaExcluir?.url && (
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <img 
+                src={fotoParaExcluir.url} 
+                alt="Preview" 
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '150px',
+                  borderRadius: '4px'
+                }} 
+              />
+            </Box>
+          )}
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setOpenConfirmDelete(false)}>Cancelar</Button>
-
-          <Button variant="contained" color="error" onClick={confirmarExclusao}>
-            Excluir
+          <Button 
+            onClick={() => setOpenConfirmDelete(false)}
+            disabled={loading}
+          >
+            Cancelar
+          </Button>
+          
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={confirmarExclusao}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : "Excluir"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={openSnackbar} autoHideDuration={3000} onClose={() => setOpenSnackbar(false)}>
-        <Alert severity="success">{snackbarMessage}</Alert>
+      {/* Snackbar de notificação */}
+      <Snackbar 
+        open={openSnackbar} 
+        autoHideDuration={4000} 
+        onClose={() => setOpenSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setOpenSnackbar(false)} 
+          severity={snackbarMessage.includes('sucesso') ? 'success' : 'error'}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
       </Snackbar>
     </Container>
   );

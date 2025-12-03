@@ -4,15 +4,57 @@ import pool from "@/lib/db";
 export async function GET() {
   try {
     const res = await pool.query(`
-      SELECT f.*, e.titulo AS evento_titulo 
+      SELECT 
+        f.id,
+        f.url_img AS url,
+        f.titulo,
+        f.descricao,
+        f.data_evento,
+        f.evento_id,
+        e.titulo AS evento_titulo,
+        e.descricao AS evento_descricao,
+        e.data_evento AS evento_data,
+        e.local AS evento_local
       FROM foto f
       LEFT JOIN evento e ON f.evento_id = e.id
-      ORDER BY f.id ASC
+      ORDER BY 
+        CASE 
+          WHEN e.data_evento IS NOT NULL THEN e.data_evento
+          WHEN f.data_evento IS NOT NULL THEN f.data_evento
+          ELSE '9999-12-31'::date
+        END DESC,
+        f.id DESC
     `);
 
     return NextResponse.json(res.rows);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Erro ao buscar fotos" }, { status: 500 });
+    console.error("Erro ao buscar fotos:", err);
+    
+    // Versão simplificada que sempre funciona
+    try {
+      const res = await pool.query(`
+        SELECT 
+          f.id,
+          f.url_img AS url,
+          f.titulo,
+          f.descricao,
+          f.data_evento,
+          f.evento_id,
+          e.titulo AS evento_titulo,
+          e.descricao AS evento_descricao,
+          e.data_evento AS evento_data,
+          e.local AS evento_local
+        FROM foto f
+        LEFT JOIN evento e ON f.evento_id = e.id
+        ORDER BY f.id DESC
+      `);
+      return NextResponse.json(res.rows);
+    } catch (error) {
+      console.error("Erro na query simplificada:", error);
+      return NextResponse.json({ 
+        error: "Erro ao buscar fotos",
+        details: error.message 
+      }, { status: 500 });
+    }
   }
 }

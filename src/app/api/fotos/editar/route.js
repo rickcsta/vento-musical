@@ -1,136 +1,148 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
-import { del } from "@vercel/blob";
-
-async function uploadToBlob(req, file) {
-  const form = new FormData();
-  form.append("file", file);
-
-  const origin = req.headers.get("origin");
-
-  const uploadRes = await fetch(`${origin}/api/upload`, {
-    method: "POST",
-    body: form
-  });
-
-  if (!uploadRes.ok) {
-    throw new Error("Erro ao enviar imagem para o Blob");
-  }
-
-  const data = await uploadRes.json();
-  return data.url;
-}
+import { del } from '@vercel/blob';
 
 export async function POST(req) {
   try {
-    const form = await req.formData();
+    const body = await req.json();
+    const { titulo, descricao, data_evento, evento_id, url_img } = body;
 
-    const titulo = form.get("titulo");
-    const descricao = form.get("descricao");
-    const data_evento = form.get("data_evento");
-    const evento_id = Number(form.get("evento_id"));
-    const file = form.get("file");
-
-    let url_img = null;
-
-    if (file && file.size > 0) {
-      url_img = await uploadToBlob(req, file);
+    // Validação básica
+    if (!titulo || !url_img) {
+      return NextResponse.json(
+        { error: "Título e imagem são obrigatórios" },
+        { status: 400 }
+      );
     }
 
-    const query = `
-      INSERT INTO foto (titulo, descricao, data_evento, evento_id, url_img)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *;
-    `;
+    const client = await pool.connect();
+    
+    const res = await client.query(
+      `INSERT INTO foto (titulo, descricao, data_evento, evento_id, url_img) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING id, titulo, descricao, data_evento, evento_id, url_img`,
+      [titulo, descricao, data_evento || null, evento_id || null, url_img]
+    );
 
-    const values = [titulo, descricao, data_evento, evento_id, url_img];
-    const { rows } = await pool.query(query, values);
+    client.release();
 
-    return NextResponse.json(rows[0]);
+    return NextResponse.json(res.rows[0], { status: 201 });
 
   } catch (error) {
-    console.error("Erro ao criar foto:", error);
-    return NextResponse.json({ error: "Erro ao criar foto" }, { status: 500 });
+    console.error("Erro POST foto:", error);
+    return NextResponse.json(
+      { error: "Erro ao criar foto", details: error.message },
+      { status: 500 }
+    );
   }
 }
 
 export async function PUT(req) {
   try {
-    const form = await req.formData();
+    const body = await req.json();
+    const { id, titulo, descricao, data_evento, evento_id, url_img } = body;
 
-    const id = Number(form.get("id"));
-    const titulo = form.get("titulo");
-    const descricao = form.get("descricao");
-    const data_evento = form.get("data_evento");
-    const evento_id = Number(form.get("evento_id"));
-    const file = form.get("file");
-
-    const fotoQuery = `SELECT * FROM foto WHERE id = $1`;
-    const { rows: oldRows } = await pool.query(fotoQuery, [id]);
-
-    if (oldRows.length === 0) {
-      return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
+    if (!id) {
+      return NextResponse.json(
+        { error: "ID da foto é obrigatório" },
+        { status: 400 }
+      );
     }
 
-    let url_img = oldRows[0].url_img;
+    const client = await pool.connect();
+    
+    // Busca a foto atual para verificar se tem imagem diferente
+    const fotoAtual = await client.query(
+      `SELECT url_img FROM foto WHERE id = $1`,
+      [id]
+    );
 
-    if (file && file.size > 0) {
-      url_img = await uploadToBlob(req, file);
-    }
+    const res = await client.query(
+      `UPDATE foto 
+       SET titulo = COALESCE($1, titulo),
+           descricao = COALESCE($2, descricao),
+           data_evento = COALESCE($3, data_evento),
+           evento_id = COALESCE($4, evento_id),
+           url_img = COALESCE($5, url_img)
+       WHERE id = $6
+       RETURNING id, titulo, descricao, data_evento, evento_id, url_img`,
+      [
+        titulo || null,
+        descricao || null,
+        data_evento || null,
+        evento_id || null,
+        url_img || null,
+        id
+      ]
+    );
 
-    const updateQuery = `
-      UPDATE foto
-      SET titulo = $1,
-          descricao = $2,
-          data_evento = $3,
-          evento_id = $4,
-          url_img = $5
-      WHERE id = $6
-      RETURNING *;
-    `;
+    client.release();
 
-    const values = [titulo, descricao, data_evento, evento_id, url_img, id];
-    const { rows } = await pool.query(updateQuery, values);
-
-    return NextResponse.json(rows[0]);
+    return NextResponse.json(res.rows[0], { status: 200 });
 
   } catch (error) {
-    console.error("Erro ao editar foto:", error);
-    return NextResponse.json({ error: "Erro ao editar foto" }, { status: 500 });
+    console.error("Erro PUT foto:", error);
+    return NextResponse.json(
+      { error: "Erro ao atualizar foto", details: error.message },
+      { status: 500 }
+    );
   }
-
-  
 }
 
 export async function DELETE(req) {
   try {
-    const { id } = await req.json();
+    const body = await req.json();
+    const { id } = body;
 
     if (!id) {
-      return NextResponse.json({ error: "ID não enviado" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID da foto é obrigatório" },
+        { status: 400 }
+      );
     }
 
-    // 1. Buscar a foto no banco para pegar a URL
-    const foto = await pool.query("SELECT url_img FROM foto WHERE id = $1", [id]);
+    const client = await pool.connect();
+    
+    // Busca a foto para obter a URL da imagem
+    const foto = await client.query(
+      `SELECT url_img FROM foto WHERE id = $1`,
+      [id]
+    );
 
     if (foto.rows.length === 0) {
-      return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
+      client.release();
+      return NextResponse.json(
+        { error: "Foto não encontrada" },
+        { status: 404 }
+      );
     }
 
-    const blobUrl = foto.rows[0].url_img;
+    const url_img = foto.rows[0].url_img;
 
-    // 2. Apagar do banco
-    await pool.query("DELETE FROM foto WHERE id = $1", [id]);
+    // Deleta do banco de dados
+    await client.query(`DELETE FROM foto WHERE id = $1`, [id]);
+    client.release();
 
-    // 3. APAGAR DO BLOB DA VERCEL
-    if (blobUrl) {
-      await del(blobUrl); // <-- APAGA o arquivo definitivamente
+    // Deleta a imagem do blob (se existir)
+    if (url_img) {
+      try {
+        await del(url_img);
+      } catch (blobError) {
+        console.error("Erro ao deletar do blob:", blobError);
+        // Continua mesmo se falhar a exclusão do blob
+      }
     }
 
-    return NextResponse.json({ message: "Foto apagada com sucesso!" });
+    return NextResponse.json(
+      { message: "Foto excluída com sucesso" },
+      { status: 200 }
+    );
 
   } catch (error) {
-    console.error("Erro ao deletar foto:", error);
-    return NextResponse.json({ error: "Erro ao deletar foto" }, { status: 500 });
+    console.error("Erro DELETE foto:", error);
+    return NextResponse.json(
+      { error: "Erro ao excluir foto", details: error.message },
+      { status: 500 }
+    );
   }
 }
