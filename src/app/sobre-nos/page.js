@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Container, Typography, Paper, Box, Grid, Avatar, Card, CardContent } 
-from '@mui/material';
+import { Container, Typography, Paper, Box, Grid, Avatar } from '@mui/material';
 import MissionIcon from '@mui/icons-material/Flag';
 
 export default function SobreNosPage() {
@@ -46,19 +45,19 @@ export default function SobreNosPage() {
         </Typography>
       </Paper>
 
-       <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
-  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-    <MissionIcon color="primary" sx={{ fontSize: 60, mb: 2 }} />
-  </Box>
-  <Typography variant="h4" gutterBottom align="center" color="primary">
-    Nossa Missão
-  </Typography>
-      <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}>
+      {/* Missão */}
+      <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <MissionIcon color="primary" sx={{ fontSize: 60, mb: 2 }} />
+        </Box>
+        <Typography variant="h4" gutterBottom align="center" color="primary">
+          Nossa Missão
+        </Typography>
+        <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', lineHeight: 1.8 }}>
           {sobre.missao}
         </Typography>
       </Paper>
 
-  
       {/* Equipe */}
       <Paper elevation={3} sx={{ p: 4 }}>
         <Typography variant="h4" gutterBottom align="center" color="primary">
@@ -70,16 +69,19 @@ export default function SobreNosPage() {
             <Grid item xs={12} sm={6} md={4} key={membro.id}>
               <Box sx={{ textAlign: 'center' }}>
                 <Avatar
-                  src={membro.foto}
+                  src={membro.fotoUrl || undefined} // usa fotoUrl
                   alt={membro.nome}
                   sx={{
                     width: 120,
                     height: 120,
                     margin: '0 auto 16px',
                     border: '4px solid',
-                    borderColor: 'primary.main'
+                    borderColor: 'primary.main',
+                    bgcolor: !membro.fotoUrl ? 'primary.light' : undefined,
                   }}
-                />
+                >
+                  {!membro.fotoUrl && membro.nome.slice(0, 1).toUpperCase()} 
+                </Avatar>
                 <Typography variant="h6">
                   {membro.nome}
                 </Typography>
