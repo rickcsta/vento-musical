@@ -7,7 +7,7 @@ import pool from "@/lib/db";
 async function getUserByEmail(email) {
   const client = await pool.connect();
   const res = await client.query(
-    "SELECT email, senha FROM usuario_admin WHERE email = $1",
+    "SELECT id, email, senha FROM usuario_admin WHERE email = $1",
     [email]
   );
   client.release();
@@ -41,18 +41,16 @@ const authOptions = {
   callbacks: {
     async jwt({ token, user, account, profile }) {
       if (account?.provider === "google" && profile) {
-        const existing = await getUserByEmail(profile.email);
-        if (existing) {
-          token.id = existing.id;
-        } else {
-          const client = await pool.connect();
-          const res = await client.query(
+           const existing = await getUserByEmail(profile.email);
+            if (existing) {
+            token.id = existing.id;
+            } else {
+            const client = await pool.connect();
+            const res = await client.query(
             "INSERT INTO usuario_admin (email) VALUES ($1) RETURNING id",
-            [profile.name ?? "Usuário", profile.email]
-          );
-          client.release();
-          token.id = res.rows[0].id;
-        }
+            [profile.name ?? "Usuário", profile.email]);
+  token.id = res.rows[0].id;
+}
       }
 
       if (user) {

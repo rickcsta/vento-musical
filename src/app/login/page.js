@@ -2,48 +2,34 @@
 
 import { useState } from 'react';
 import {
-  Container,
-  Paper,
-  TextField,
-  Typography,
-  Button,
-  Box,
-  Alert,
-  Snackbar
+  Container, Paper, TextField, Typography, Button,
+  Box, Alert, Snackbar
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
-import { signIn, useSession, getSession } from "next-auth/react";
-
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [openSnackbar, setOpenSnackbar] = useState(false);
-  const { data: session, status } = useSession();
 
   const handleLogin = async () => {
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha })
-      });
+    const result = await signIn("credentials", {
+      email,
+      senha,
+      redirect: false
+    });
 
-      if (!response.ok) {
-        alert("Credenciais inválidas!");
-        return;
-      }
-
-      setOpenSnackbar(true);
-
-      setTimeout(() => {
-        window.location.href = "/admin";
-      }, 1500);
-
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao realizar login.");
+    if (result?.error) {
+      alert("Credenciais inválidas!");
+      return;
     }
+
+    setOpenSnackbar(true);
+
+    setTimeout(() => {
+      window.location.href = "/admin";
+    }, 1500);
   };
 
   return (
@@ -54,10 +40,6 @@ export default function LoginPage() {
 
         <Typography variant="h4" gutterBottom>
           Entrar
-        </Typography>
-
-        <Typography variant="body1" sx={{ mb: 3, opacity: 0.7 }}>
-          Acesse sua conta administrativa
         </Typography>
 
         <TextField
@@ -89,11 +71,7 @@ export default function LoginPage() {
         </Button>
       </Paper>
 
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={2500}
-        onClose={() => setOpenSnackbar(false)}
-      >
+      <Snackbar open={openSnackbar} autoHideDuration={2500}>
         <Alert severity="success">Login realizado com sucesso!</Alert>
       </Snackbar>
     </Container>
