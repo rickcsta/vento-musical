@@ -6,64 +6,95 @@ import {
   Box, 
   Card, 
   CardContent,
-
+  Button
 } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import EventIcon from '@mui/icons-material/Event';
-import AddAPhotoIcon from '@mui/icons-material/AddAPhoto'; 
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import PeopleIcon from '@mui/icons-material/People';
 import { useSession} from "next-auth/react";
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 export default function AdminDashboard() {
-  const { data: session, status } = useSession();
-  const stats = [
-    { title: 'Fotos na Galeria', value: '24', icon: <PhotoLibraryIcon />, color: '#1976d2' },
-    { title: 'Eventos Cadastrados', value: '6', icon: <EventIcon />, color: '#2e7d32' },
-    
-  ];
+  const { data: session } = useSession();
+  const [contagem, setContagem] = useState({ 
+    fotos: 0, 
+    eventos: 0, 
+    membros: 0 
+  });
 
-  const quickActions = [
-    { text: 'Editar Sobre Nós', href: '/admin/sobre-nos', icon: <InfoIcon /> },
-    { text: 'Adicionar Fotos', href: '/admin/fotos', icon: <AddAPhotoIcon /> }, 
-    { text: 'Agendar Evento', href: '/admin/eventos', icon: <CalendarTodayIcon /> },
-  ];
+  useEffect(() => {
+    const buscarDados = async () => {
+      try {
+        // Buscar fotos
+        const fotosRes = await fetch('/api/fotos/exibir');
+        if (fotosRes.ok) {
+          const fotos = await fotosRes.json();
+          setContagem(prev => ({ ...prev, fotos: fotos.length }));
+        }
+        
+        // Buscar eventos
+        const eventosRes = await fetch('/api/evento/exibir');
+        if (eventosRes.ok) {
+          const eventos = await eventosRes.json();
+          setContagem(prev => ({ ...prev, eventos: eventos.length }));
+        }
+        
+        // Buscar membros da equipe
+        // Vou criar um endpoint simples para isso
+        const membrosRes = await fetch('/api/equipe/contar');
+if (membrosRes.ok) {
+  const dados = await membrosRes.json();
+  setContagem(prev => ({ 
+    ...prev, 
+    membros: dados.total || 0 
+  }));
+}
+        
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    
+    buscarDados();
+  }, []);
 
   return (
     <>
       <Typography variant="h4" gutterBottom>
-        Dashboard Administrativo
-      </Typography>
-      <Typography variant="body1" color="text.secondary" paragraph>
-        Gerencie o conteúdo do seu site nesta área.
+        Painel Administrativo
       </Typography>
 
-      {/* Estatísticas */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {stats.map((stat, index) => (
-          <Grid item xs={12} md={4} key={index}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box sx={{ 
-                    backgroundColor: `${stat.color}20`, 
-                    p: 1, 
-                    borderRadius: '50%',
-                    mr: 2
-                  }}>
-                    <Box sx={{ color: stat.color }}>
-                      {stat.icon}
-                    </Box>
-                  </Box>
-                  <Box>
-                    <Typography variant="h3">{stat.value}</Typography>
-                    <Typography variant="body2" color="text.secondary">{stat.title}</Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+      {/* Contadores */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={4}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <PhotoLibraryIcon sx={{ color: '#1976d2', mb: 1 }} />
+              <Typography variant="h5">{contagem.fotos}</Typography>
+              <Typography variant="body2">Fotos</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={4}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <EventIcon sx={{ color: '#2e7d32', mb: 1 }} />
+              <Typography variant="h5">{contagem.eventos}</Typography>
+              <Typography variant="body2">Eventos</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={4}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <PeopleIcon sx={{ color: '#9c27b0', mb: 1 }} />
+              <Typography variant="h5">{contagem.membros}</Typography>
+              <Typography variant="body2">Membros</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
     </>
   );
