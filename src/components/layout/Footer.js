@@ -7,17 +7,27 @@ import {
   Link as MuiLink,
   Grid,
   IconButton,
+  Stack,
 } from '@mui/material';
 import Link from 'next/link';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import EmailIcon from '@mui/icons-material/Email';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import { useEffect, useState } from 'react';
 
 export default function Footer() {
+  const [currentYear, setCurrentYear] = useState('');
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear().toString());
+  }, []);
+
   return (
     <Box
       component="footer"
       sx={{
-        backgroundColor: 'primary.main',
+        backgroundColor: 'primary.dark',
         color: 'white',
         py: 4,
         mt: 'auto',
@@ -25,51 +35,141 @@ export default function Footer() {
     >
       <Container maxWidth="lg">
         <Grid container spacing={4}>
-          {/* Contato */}
+          {/* Logo e Sobre */}
           <Grid item xs={12} md={4}>
-            <Typography variant="h6" gutterBottom>
-              Contato
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <EmailIcon sx={{ mr: 1 }} />
-              <Typography>ventomusical.ifpb@gmail.com</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <MusicNoteIcon sx={{ mr: 1, fontSize: 28 }} />
+              <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                VENTO MUSICAL
+              </Typography>
             </Box>
+            <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+              Projeto de extensão do IFPB que leva música para todos os cantos.
+            </Typography>
           </Grid>
 
           {/* Links Rápidos */}
-          <Grid item xs={12} md={4}>
-            <Typography variant="h6" gutterBottom>
-              Links Rápidos
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+              Navegação
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <MuiLink component={Link} href="/sobre-nos" color="inherit" sx={{ mb: 1 }}>
-                Sobre Nós
+            <Stack spacing={1}>
+              <MuiLink 
+                component={Link} 
+                href="/" 
+                color="inherit" 
+                underline="hover"
+                sx={{ display: 'flex', alignItems: 'center' }}
+              >
+                • Início
               </MuiLink>
-              <MuiLink component={Link} href="/fotos" color="inherit" sx={{ mb: 1 }}>
-                Galeria de Fotos
+              <MuiLink 
+                component={Link} 
+                href="/sobre-nos" 
+                color="inherit" 
+                underline="hover"
+                sx={{ display: 'flex', alignItems: 'center' }}
+              >
+                • Sobre Nós
               </MuiLink>
-              <MuiLink component={Link} href="/eventos" color="inherit" sx={{ mb: 1 }}>
-                Próximos Eventos
+              <MuiLink 
+                component={Link} 
+                href="/fotos" 
+                color="inherit" 
+                underline="hover"
+                sx={{ display: 'flex', alignItems: 'center' }}
+              >
+                • Galeria de Fotos
               </MuiLink>
-            </Box>
+              <MuiLink 
+                component={Link} 
+                href="/eventos" 
+                color="inherit" 
+                underline="hover"
+                sx={{ display: 'flex', alignItems: 'center' }}
+              >
+                • Eventos
+              </MuiLink>
+            </Stack>
           </Grid>
 
-          {/* Redes Sociais */}
-          <Grid item xs={12} md={4}>
-            <Typography variant="h6" gutterBottom>
-              Redes Sociais
+          {/* Contato */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+              Contato
             </Typography>
-            <Box>
-              <IconButton color="inherit" href="https://www.instagram.com/ventomusical/" target="_blank">
-                <InstagramIcon />
-              </IconButton>
-            </Box>
+            <Stack spacing={2}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <EmailIcon sx={{ mr: 2, fontSize: 20 }} />
+                <Typography variant="body2">
+                  ventomusical.ifpb@gmail.com
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <LocationOnIcon sx={{ mr: 2, fontSize: 20 }} />
+                <Typography variant="body2">
+                  IFPB - Campus Esperança
+                </Typography>
+              </Box>
+            </Stack>
           </Grid>
         </Grid>
 
-        <Typography variant="body2" align="center" sx={{ mt: 4, pt: 2, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          © {new Date().getFullYear()} Projeto Escolar - IFPB. Todos os direitos reservados.
-        </Typography>
+        {/* Redes Sociais e Créditos */}
+        <Box sx={{ 
+          mt: 4, 
+          pt: 3, 
+          borderTop: '1px solid rgba(255,255,255,0.1)',
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+            <Typography variant="body2" sx={{ opacity: 0.8 }}>
+              © {currentYear || '2024'} Projeto de Extensão - IFPB. Todos os direitos reservados.
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.6 }}>
+              Site desenvolvido por [Henrique Bruno da Costa Oliveira]
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="body2" sx={{ mb: 1, textAlign: { xs: 'center', sm: 'right' }, opacity: 0.8 }}>
+              Siga-nos nas redes sociais:
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: { xs: 'center', sm: 'flex-end' } }}>
+              <IconButton 
+                color="inherit" 
+                href="https://www.instagram.com/ventomusical/" 
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ 
+                  '&:hover': { 
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    transform: 'translateY(-2px)'
+                  },
+                  transition: 'all 0.2s'
+                }}
+              >
+                <InstagramIcon />
+              </IconButton>
+              <IconButton 
+                color="inherit" 
+                href="mailto:ventomusical.ifpb@gmail.com"
+                sx={{ 
+                  '&:hover': { 
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    transform: 'translateY(-2px)'
+                  },
+                  transition: 'all 0.2s'
+                }}
+              >
+              </IconButton>
+            </Box>
+          </Box>
+        </Box>
       </Container>
     </Box>
   );

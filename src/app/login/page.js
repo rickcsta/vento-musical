@@ -28,7 +28,7 @@ export default function LoginPage() {
     setOpenSnackbar(true);
 
     setTimeout(() => {
-      window.location.href = "/admin";
+      window.location.href = "/";
     }, 1500);
   };
 

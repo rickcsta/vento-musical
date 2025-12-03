@@ -1,7 +1,8 @@
-'use client'; // CERTIFIQUE-SE QUE TEM ISSO NO TOPO
+'use client';
 
-import { useState, useEffect } from 'react'; // Adicionar useEffect
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { signOut, useSession } from 'next-auth/react';
 import {
   AppBar,
   Toolbar,
@@ -14,12 +15,22 @@ import {
   List,
   ListItem,
   ListItemText,
+  Avatar,
+  Menu,
+  MenuItem,
+  Divider,
+  ListItemButton,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import EventIcon from '@mui/icons-material/Event';
 import InfoIcon from '@mui/icons-material/Info';
 import HomeIcon from '@mui/icons-material/Home';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import LoginIcon from '@mui/icons-material/Login';
+import LogoutIcon from '@mui/icons-material/Logout';
+import SettingsIcon from '@mui/icons-material/Settings';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
 
 const navItems = [
   { name: 'Início', href: '/', icon: <HomeIcon /> },
@@ -29,16 +40,30 @@ const navItems = [
 ];
 
 export default function Header() {
+  const { data: session, status } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mounted, setMounted] = useState(false); // Adicionar estado para controle
+  const [mounted, setMounted] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
 
-  // Evitar renderização no servidor
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleMenuClose();
+    signOut({ callbackUrl: '/' });
   };
 
   // Se não estiver montado (no servidor), renderizar versão simplificada
@@ -65,16 +90,20 @@ export default function Header() {
     );
   }
 
+  const isAuthenticated = status === 'authenticated';
+  const isAdmin = session?.user?.role === 'admin' || session?.user?.email?.includes('admin');
+
   return (
     <>
       <AppBar position="static">
         <Container maxWidth="xl">
           <Toolbar disableGutters>
-            {/* Logo - SEM Link durante SSR */}
+            {/* Logo */}
             <Typography
               variant="h6"
               noWrap
-              component="div"
+              component={Link}
+              href="/"
               sx={{
                 mr: 2,
                 fontWeight: 700,
@@ -84,7 +113,7 @@ export default function Header() {
                 alignItems: 'center',
               }}
             >
-              <EventIcon sx={{ mr: 1 }} />
+              <MusicNoteIcon sx={{ mr: 1 }} />
               VENTO MUSICAL
             </Typography>
 
@@ -102,19 +131,100 @@ export default function Header() {
               ))}
             </Box>
 
-            {/* Link Admin */}
-            <Button
-              component={Link}
-              href="/admin"
-              variant="outlined"
-              sx={{ 
-                color: 'white', 
-                borderColor: 'white',
-                display: { xs: 'none', md: 'flex' }
-              }}
-            >
-              Admin
-            </Button>
+            {/* Botões de Autenticação - Desktop */}
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
+              {isAuthenticated ? (
+                <>
+                  {/* Botão Gerenciamento */}
+                  <Button
+                    component={Link}
+                    href="/admin"
+                    variant="contained"
+                    startIcon={<AdminPanelSettingsIcon />}
+                    sx={{
+                      backgroundColor: 'white',
+                      color: 'primary.main',
+                      '&:hover': {
+                        backgroundColor: 'grey.100'
+                      }
+                    }}
+                  >
+                    Gerenciamento
+                  </Button>
+
+                  {/* Menu do Usuário */}
+                  <IconButton
+                    onClick={handleMenuOpen}
+                    sx={{ color: 'white' }}
+                  >
+                    {session?.user?.image ? (
+                      <Avatar 
+                        src={session.user.image} 
+                        alt={session.user.name || 'Usuário'}
+                        sx={{ width: 32, height: 32 }}
+                      />
+                    ) : (
+                      <Avatar 
+                        sx={{ 
+                          width: 32, 
+                          height: 32,
+                          bgcolor: 'primary.light'
+                        }}
+                      >
+                        {session?.user?.name?.[0] || 'U'}
+                      </Avatar>
+                    )}
+                  </IconButton>
+
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleMenuClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'right',
+                    }}
+                  >
+                    <MenuItem disabled>
+                      <Typography variant="body2" color="text.secondary">
+                        {session?.user?.name || session?.user?.email}
+                      </Typography>
+                    </MenuItem>
+                    <Divider />
+                    <MenuItem component={Link} href="/admin" onClick={handleMenuClose}>
+                      <SettingsIcon sx={{ mr: 1, fontSize: 20 }} />
+                      Painel Admin
+                    </MenuItem>
+                    <MenuItem onClick={handleLogout}>
+                      <LogoutIcon sx={{ mr: 1, fontSize: 20 }} />
+                      Sair
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                // Botão de Login
+                <Button
+                  component={Link}
+                  href="/login"
+                  variant="outlined"
+                  startIcon={<LoginIcon />}
+                  sx={{ 
+                    color: 'white', 
+                    borderColor: 'white',
+                    '&:hover': {
+                      borderColor: 'white',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                    }
+                  }}
+                >
+                  Admin Login
+                </Button>
+              )}
+            </Box>
 
             {/* Menu Mobile */}
             <IconButton
@@ -122,7 +232,7 @@ export default function Header() {
               aria-label="open drawer"
               edge="end"
               onClick={handleDrawerToggle}
-              sx={{ display: { md: 'none' } }}
+              sx={{ display: { md: 'none' }, ml: 1 }}
             >
               <MenuIcon />
             </IconButton>
@@ -131,40 +241,85 @@ export default function Header() {
       </AppBar>
 
       {/* Drawer Mobile */}
-      {mobileOpen && (
-        <Drawer
-          anchor="right"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
-        >
-          <Box sx={{ width: 250 }} role="presentation">
-            <List>
-              {navItems.map((item) => (
-                <ListItem 
-                  key={item.name} 
-                  button 
+      <Drawer
+        anchor="right"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true,
+        }}
+      >
+        <Box sx={{ width: 250 }} role="presentation">
+          <List>
+            {/* Menu Principal */}
+            {navItems.map((item) => (
+              <ListItem 
+                key={item.name} 
+                disablePadding
+              >
+                <ListItemButton 
                   component={Link} 
                   href={item.href}
                   onClick={handleDrawerToggle}
                 >
                   <ListItemText primary={item.name} />
-                </ListItem>
-              ))}
-              <ListItem 
-                button 
-                component={Link} 
-                href="/admin"
-                onClick={handleDrawerToggle}
-              >
-                <ListItemText primary="Área Admin" />
+                </ListItemButton>
               </ListItem>
-            </List>
-          </Box>
-        </Drawer>
-      )}
+            ))}
+
+            <Divider sx={{ my: 1 }} />
+
+            {/* Seção Admin */}
+            {isAuthenticated ? (
+              <>
+                <ListItem disablePadding>
+                  <ListItemButton disabled>
+                    <ListItemText 
+                      primary="Administração" 
+                      primaryTypographyProps={{ 
+                        variant: 'body2', 
+                        color: 'text.secondary' 
+                      }} 
+                    />
+                  </ListItemButton>
+                </ListItem>
+                <ListItem disablePadding>
+                  <ListItemButton 
+                    component={Link} 
+                    href="/admin"
+                    onClick={handleDrawerToggle}
+                  >
+                    <AdminPanelSettingsIcon sx={{ mr: 2, fontSize: 20 }} />
+                    <ListItemText primary="Painel Admin" />
+                  </ListItemButton>
+                </ListItem>
+                <ListItem disablePadding>
+                  <ListItemButton 
+                    onClick={() => {
+                      handleDrawerToggle();
+                      signOut({ callbackUrl: '/' });
+                    }}
+                  >
+                    <LogoutIcon sx={{ mr: 2, fontSize: 20 }} />
+                    <ListItemText primary="Sair" />
+                  </ListItemButton>
+                </ListItem>
+              </>
+            ) : (
+              <ListItem disablePadding>
+                <ListItemButton 
+                  component={Link} 
+                  href="/login"
+                  onClick={handleDrawerToggle}
+                >
+                  <LoginIcon sx={{ mr: 2, fontSize: 20 }} />
+                  <ListItemText primary="Login Admin" />
+                </ListItemButton>
+              </ListItem>
+            )}
+          </List>
+        </Box>
+      </Drawer>
     </>
   );
 }
