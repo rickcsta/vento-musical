@@ -75,36 +75,36 @@ export default function Header() {
   return (
     <>
       <AppBar position="static">
-  <Container maxWidth="xl">
-    <Toolbar disableGutters>
-      {/* Logo */}
-      <Typography
-        variant="h6"
-        noWrap
-        component={Link}
-        href="/"
-        sx={{
-          mr: 2,
-          fontWeight: 700,
-          color: "inherit",
-          textDecoration: "none",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        <Image
-          src="/logo.png"
-          alt="Logo"
-          width={28}   // tamanho do ícone
-          height={28}
-          style={{ marginRight: 8 }}
-        />
+        <Container maxWidth="xl">
+          <Toolbar disableGutters>
+            {/* Logo - lado esquerdo */}
+            <Typography
+              variant="h6"
+              noWrap
+              component={Link}
+              href="/"
+              sx={{
+                mr: 2,
+                fontWeight: 700,
+                color: "inherit",
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                flexGrow: { xs: 1, md: 0 }, // No mobile ocupa todo espaço, no desktop não
+              }}
+            >
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={28}
+                height={28}
+                style={{ marginRight: 8 }}
+              />
+              VENTO MUSICAL
+            </Typography>
 
-        VENTO MUSICAL
-      </Typography>
-
-            {/* Menu Desktop */}
-            <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
+            {/* Menu Desktop - centro */}
+            <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, justifyContent: 'start'}}>
               {navItems.map((item) => (
                 <Button
                   key={item.name}
@@ -117,8 +117,12 @@ export default function Header() {
               ))}
             </Box>
 
-            {/* Botões de Autenticação - Desktop */}
-            <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
+            {/* Seção direita - Desktop */}
+            <Box sx={{ 
+              display: { xs: 'none', md: 'flex' }, 
+              alignItems: 'center', 
+              gap: 1 
+            }}>
               {isAuthenticated ? (
                 <>
                   {/* Botão Gerenciamento */}
@@ -212,13 +216,13 @@ export default function Header() {
               )}
             </Box>
 
-            {/* Menu Mobile */}
+            {/* Apenas as 3 barrinhas no Mobile - canto direito */}
             <IconButton
               color="inherit"
               aria-label="open drawer"
               edge="end"
               onClick={handleDrawerToggle}
-              sx={{ display: { md: 'none' }, ml: 1 }}
+              sx={{ display: { md: 'none' }, ml: 'auto' }} // ml: 'auto' empurra para direita
             >
               <MenuIcon />
             </IconButton>
@@ -269,6 +273,33 @@ export default function Header() {
                     />
                   </ListItemButton>
                 </ListItem>
+                
+                {/* Informações do usuário no drawer mobile */}
+                <ListItem disablePadding>
+                  <ListItemButton disabled>
+                    <Avatar 
+                      sx={{ 
+                        width: 32, 
+                        height: 32,
+                        mr: 2,
+                        bgcolor: 'primary.main'
+                      }}
+                    >
+                      {session?.user?.name?.[0] || 'U'}
+                    </Avatar>
+                    <ListItemText 
+                      primary={session?.user?.name || 'Usuário'} 
+                      secondary={session?.user?.email}
+                      primaryTypographyProps={{ 
+                        variant: 'body2' 
+                      }}
+                      secondaryTypographyProps={{
+                        variant: 'caption'
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+                
                 <ListItem disablePadding>
                   <ListItemButton 
                     component={Link} 
