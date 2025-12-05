@@ -19,10 +19,12 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  CircularProgress,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 export default function EditarSobreNos() {
   const [dados, setDados] = useState({
@@ -36,6 +38,9 @@ export default function EditarSobreNos() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [membroParaRemover, setMembroParaRemover] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   // Carregar dados
   useEffect(() => {
@@ -47,7 +52,7 @@ export default function EditarSobreNos() {
           descricao: data.sobre_nos.descricao,
           missao: data.sobre_nos.missao,
           equipe: data.equipe.map(m => ({ 
-            id: m.id, // Adiciona ID para controle
+            id: m.id,
             nome: m.nome, 
             cargo: m.cargo, 
             fotoUrl: m.fotoUrl || '' 
@@ -67,13 +72,54 @@ export default function EditarSobreNos() {
     const file = e.target.files[0];
     if (!file) return;
 
-    const form = new FormData();
-    form.append("file", file);
+    // Validações
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setUploadError('A imagem deve ter no máximo 5MB');
+      return;
+    }
 
-    const res = await fetch("/api/upload", { method: "POST", body: form });
-    const data = await res.json();
+    // Tipos de arquivo permitidos
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Formato não suportado. Use JPG, PNG, WEBP ou GIF');
+      return;
+    }
 
-    setNovoMembro({ ...novoMembro, fotoUrl: data.url });
+    setUploading(true);
+    setUploadError('');
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+
+      const res = await fetch("/api/upload", { 
+        method: "POST", 
+        body: form 
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro no upload');
+      }
+
+      // Para garantir que a URL seja renderizada corretamente no mobile
+      const fotoUrl = data.url + '?t=' + Date.now(); // Cache busting
+      
+      setNovoMembro(prev => ({ 
+        ...prev, 
+        fotoUrl: fotoUrl 
+      }));
+      
+    } catch (error) {
+      console.error("Erro no upload:", error);
+      setUploadError(error.message || 'Erro ao fazer upload da imagem');
+    } finally {
+      setUploading(false);
+      // Limpa o input para permitir selecionar o mesmo arquivo novamente
+      e.target.value = '';
+    }
   };
 
   const addMembro = () => {
@@ -81,9 +127,13 @@ export default function EditarSobreNos() {
       const novoId = Math.max(0, ...dados.equipe.map(m => m.id)) + 1;
       setDados({ 
         ...dados, 
-        equipe: [...dados.equipe, { ...novoMembro, id: novoId }] 
+        equipe: [...dados.equipe, { 
+          ...novoMembro, 
+          id: novoId 
+        }] 
       });
       setNovoMembro({ nome: '', cargo: '', fotoUrl: '' });
+      setUploadError('');
     }
   };
 
@@ -117,17 +167,22 @@ export default function EditarSobreNos() {
         }),
       });
 
-      if (!response.ok) throw new Error("Erro ao salvar");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Erro ao salvar");
+      }
 
       const result = await response.json();
       setDadosOriginais(JSON.parse(JSON.stringify(dados)));
+      setSnackbarMessage('Alterações salvas com sucesso!');
       setOpenSnackbar(true);
 
       console.log(`${result.fotosExcluidas || 0} fotos excluídas do blob`);
 
     } catch (error) {
       console.error(error);
-      alert("Erro ao salvar!");
+      setSnackbarMessage(`Erro: ${error.message}`);
+      setOpenSnackbar(true);
     }
   };
 
@@ -168,6 +223,9 @@ export default function EditarSobreNos() {
                             borderRadius: '50%',
                             objectFit: 'cover'
                           }} 
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
                         />
                       )}
                       <Box>
@@ -190,6 +248,13 @@ export default function EditarSobreNos() {
         </Grid>
 
         <Typography variant="subtitle1">Adicionar Membro</Typography>
+        
+        {uploadError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {uploadError}
+          </Alert>
+        )}
+        
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
             <TextField 
@@ -212,27 +277,51 @@ export default function EditarSobreNos() {
             />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <Button variant="contained" component="label" fullWidth size="small">
-              Upload Foto
+            <Button 
+              variant="outlined" 
+              component="label" 
+              fullWidth 
+              size="small"
+              startIcon={<CloudUploadIcon />}
+              disabled={uploading}
+            >
+              {uploading ? 'Enviando...' : 'Upload Foto'}
               <input 
                 type="file" 
                 hidden 
                 onChange={handleMembroFoto}
                 accept="image/*"
+                capture="environment" // Para mobile, permite usar a câmera
               />
             </Button>
-            {novoMembro.fotoUrl && (
-              <img 
-                src={novoMembro.fotoUrl} 
-                alt="preview" 
-                style={{ 
-                  marginTop: 5, 
-                  width: 50, 
-                  height: 50, 
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }} 
-              />
+            
+            {uploading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                <CircularProgress size={24} />
+              </Box>
+            )}
+            
+            {novoMembro.fotoUrl && !uploading && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 1 }}>
+                <img 
+                  src={novoMembro.fotoUrl} 
+                  alt="preview" 
+                  style={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '2px solid #ddd'
+                  }} 
+                  onError={(e) => {
+                    console.error("Erro ao carregar preview:", e);
+                    e.target.style.display = 'none';
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Preview
+                </Typography>
+              </Box>
             )}
           </Grid>
         </Grid>
@@ -241,7 +330,8 @@ export default function EditarSobreNos() {
           onClick={addMembro} 
           startIcon={<AddIcon />} 
           sx={{ mt: 2 }}
-          disabled={!novoMembro.nome || !novoMembro.cargo}
+          disabled={!novoMembro.nome || !novoMembro.cargo || uploading}
+          variant="contained"
         >
           Adicionar Membro
         </Button>
@@ -253,6 +343,7 @@ export default function EditarSobreNos() {
             variant="contained" 
             startIcon={<SaveIcon />} 
             onClick={handleSave}
+            disabled={uploading}
           >
             Salvar Alterações
           </Button>
@@ -261,11 +352,16 @@ export default function EditarSobreNos() {
 
       <Snackbar 
         open={openSnackbar} 
-        autoHideDuration={3000} 
+        autoHideDuration={4000} 
         onClose={() => setOpenSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity="success" onClose={() => setOpenSnackbar(false)}>
-          Alterações salvas com sucesso!
+        <Alert 
+          severity={snackbarMessage.includes('Erro') ? 'error' : 'success'} 
+          onClose={() => setOpenSnackbar(false)}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
         </Alert>
       </Snackbar>
 

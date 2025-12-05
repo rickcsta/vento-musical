@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { del } from '@vercel/blob';
 
+// Configuração para App Router
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function PUT(req) {
   let client;
   try {
@@ -9,6 +13,9 @@ export async function PUT(req) {
     const { sobre_nos, equipe } = body;
 
     client = await pool.connect();
+
+    // Iniciar transação
+    await client.query('BEGIN');
 
     // 1. Primeiro, buscar os membros atuais para comparar
     const membrosAtuais = await client.query(
@@ -22,7 +29,8 @@ export async function PUT(req) {
     for (const membroAtual of membrosAtuais.rows) {
       const membroContinua = equipe?.some(membroNovo => 
         membroAtual.nome === membroNovo.nome && 
-        membroAtual.cargo === membroNovo.cargo
+        membroAtual.cargo === membroNovo.cargo &&
+        membroAtual.foto_url === membroNovo.fotoUrl
       );
       
       // Se o membro não está mais na nova lista E tem foto
@@ -37,14 +45,26 @@ export async function PUT(req) {
       const values = [];
       let i = 1;
 
-      if (sobre_nos.titulo !== undefined) { fields.push(`titulo = $${i++}`); values.push(sobre_nos.titulo); }
-      if (sobre_nos.missao !== undefined) { fields.push(`missao = $${i++}`); values.push(sobre_nos.missao); }
-      if (sobre_nos.descricao !== undefined) { fields.push(`descricao = $${i++}`); values.push(sobre_nos.descricao); }
+      if (sobre_nos.titulo !== undefined) { 
+        fields.push(`titulo = $${i++}`); 
+        values.push(sobre_nos.titulo); 
+      }
+      if (sobre_nos.missao !== undefined) { 
+        fields.push(`missao = $${i++}`); 
+        values.push(sobre_nos.missao); 
+      }
+      if (sobre_nos.descricao !== undefined) { 
+        fields.push(`descricao = $${i++}`); 
+        values.push(sobre_nos.descricao); 
+      }
 
       values.push(sobre_nos.id);
 
       if (fields.length > 0) {
-        await client.query(`UPDATE sobre_nos SET ${fields.join(", ")} WHERE id = $${i};`, values);
+        await client.query(
+          `UPDATE sobre_nos SET ${fields.join(", ")} WHERE id = $${i};`, 
+          values
+        );
       }
     }
 
@@ -67,19 +87,25 @@ export async function PUT(req) {
 
     // 6. Excluir fotos do blob (assíncrono, não bloqueia a resposta)
     if (fotosParaExcluir.length > 0) {
-      fotosParaExcluir.forEach(async (url) => {
-        try {
-          await del(url);
-          console.log(`Foto excluída: ${url}`);
-        } catch (error) {
-          console.error(`Erro ao excluir foto ${url}:`, error);
-        }
+      Promise.allSettled(
+        fotosParaExcluir.map(async (url) => {
+          try {
+            await del(url);
+            console.log(`Foto excluída: ${url}`);
+          } catch (error) {
+            console.error(`Erro ao excluir foto ${url}:`, error.message);
+          }
+        })
+      ).then(results => {
+        const sucessos = results.filter(r => r.status === 'fulfilled').length;
+        console.log(`Excluídas ${sucessos}/${fotosParaExcluir.length} fotos com sucesso`);
       });
     }
 
     return NextResponse.json({ 
       message: "Atualizado com sucesso!",
-      fotosExcluidas: fotosParaExcluir.length 
+      fotosExcluidas: fotosParaExcluir.length,
+      membrosAtualizados: equipe?.length || 0
     }, { status: 200 });
 
   } catch (error) {
@@ -87,7 +113,31 @@ export async function PUT(req) {
       await client.query('ROLLBACK');
       client.release();
     }
-    console.error("Erro PUT:", error);
-    return NextResponse.json({ error: "Erro no servidor" }, { status: 500 });
+    console.error("Erro PUT sobre-nos/editar:", error);
+    
+    return NextResponse.json({ 
+      error: "Erro no servidor",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
+  }
+}
+
+// Adicione também um método GET para verificar se a API está funcionando
+export async function GET() {
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT COUNT(*) FROM sobre_nos');
+    client.release();
+    
+    return NextResponse.json({ 
+      status: 'online',
+      registros: result.rows[0].count,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return NextResponse.json({ 
+      error: "Banco de dados offline",
+      details: error.message
+    }, { status: 500 });
   }
 }
