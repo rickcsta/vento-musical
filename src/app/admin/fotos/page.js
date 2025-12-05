@@ -95,12 +95,33 @@ export default function GerenciarFotos() {
   };
 
   const handleChange = field => event => {
-    if (field === "file") {
-      setNovaFoto({ ...novaFoto, file: event.target.files[0] });
-    } else {
-      setNovaFoto({ ...novaFoto, [field]: event.target.value });
+  if (field === "file") {
+    const file = event.target.files[0];
+    if (file) {
+      // Verificar tamanho ANTES de setar no state
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        const tamanhoMB = (file.size / (1024*1024)).toFixed(2);
+        setSnackbarMessage(`Arquivo muito grande: ${tamanhoMB}MB. Máximo permitido: 5 MB.`);
+        setOpenSnackbar(true);
+        event.target.value = ''; // Limpa o input
+        return;
+      }
+      
+      setNovaFoto({ ...novaFoto, file: file });
+      
+      // Mostra preview imediatamente
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        // Não precisamos guardar o data URL, apenas mostrar feedback
+        console.log("Arquivo selecionado:", file.name, `${(file.size / (1024*1024)).toFixed(2)}MB`);
+      };
+      reader.readAsDataURL(file);
     }
-  };
+  } else {
+    setNovaFoto({ ...novaFoto, [field]: event.target.value });
+  }
+};
 
   const handleSavePhoto = async () => {
     try {
