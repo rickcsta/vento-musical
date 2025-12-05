@@ -5,6 +5,7 @@ import { del } from '@vercel/blob';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// POST - Criar nova foto
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -42,6 +43,7 @@ export async function POST(req) {
   }
 }
 
+// PUT - Atualizar foto existente
 export async function PUT(req) {
   try {
     const body = await req.json();
@@ -106,6 +108,7 @@ export async function PUT(req) {
   }
 }
 
+// DELETE - Excluir foto
 export async function DELETE(req) {
   try {
     const body = await req.json();

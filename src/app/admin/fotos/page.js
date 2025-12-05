@@ -103,117 +103,116 @@ export default function GerenciarFotos() {
   };
 
   const handleSavePhoto = async () => {
-  try {
-    setLoading(true);
-    
-    // Limpar mensagens anteriores
-    setSnackbarMessage('');
-    
-    console.log("Iniciando salvamento...");
-    console.log("Estado novaFoto:", novaFoto);
-    console.log("Editing photo?", editingPhoto);
+    try {
+      setLoading(true);
+      
+      // Limpar mensagens anteriores
+      setSnackbarMessage('');
+      
+      console.log("Iniciando salvamento...");
+      console.log("Estado novaFoto:", novaFoto);
+      console.log("Editing photo?", editingPhoto);
 
-    // 🔥 1. Impedir mais de 2 fotos por evento
-    if (novaFoto.evento_id) {
-      const fotosDoEvento = fotos.filter(f => f.evento_id === novaFoto.evento_id);
+      // 🔥 1. Impedir mais de 2 fotos por evento
+      if (novaFoto.evento_id) {
+        const fotosDoEvento = fotos.filter(f => f.evento_id === novaFoto.evento_id);
 
-      // Se estiver editando, ignora a própria foto
-      const total = editingPhoto
-        ? fotosDoEvento.filter(f => f.id !== editingPhoto.id).length
-        : fotosDoEvento.length;
+        // Se estiver editando, ignora a própria foto
+        const total = editingPhoto
+          ? fotosDoEvento.filter(f => f.id !== editingPhoto.id).length
+          : fotosDoEvento.length;
 
-      if (total >= 2) {
-        setSnackbarMessage("Este evento já possui 2 fotos. Exclua uma para adicionar outra.");
-        setOpenSnackbar(true);
-        setLoading(false);
-        return;
+        if (total >= 2) {
+          setSnackbarMessage("Este evento já possui 2 fotos. Exclua uma para adicionar outra.");
+          setOpenSnackbar(true);
+          setLoading(false);
+          return;
+        }
       }
-    }
 
-    // 🔥 2. Upload da imagem (caso tenha)
-    let url_img = editingPhoto?.url; // Note: seu frontend usa "url", não "url_img"
+      // 🔥 2. Upload da imagem (caso tenha)
+      let url_img = editingPhoto?.url_img || editingPhoto?.url; // Tenta ambos os nomes
 
-    console.log("Imagem atual (se edição):", url_img);
-    console.log("Novo arquivo:", novaFoto.file);
+      console.log("Imagem atual (se edição):", url_img);
+      console.log("Novo arquivo:", novaFoto.file);
 
-    if (novaFoto.file) {
-      console.log("Fazendo upload da imagem...");
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", novaFoto.file);
+      if (novaFoto.file) {
+        console.log("Fazendo upload da imagem...");
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", novaFoto.file);
 
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        body: formDataUpload
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formDataUpload
+        });
+
+        if (!uploadRes.ok) {
+          const errorData = await uploadRes.json();
+          throw new Error('Erro no upload da imagem: ' + (errorData.error || 'Upload falhou'));
+        }
+
+        const uploadData = await uploadRes.json();
+        url_img = uploadData.url;
+        console.log("Upload bem sucedido. URL:", url_img);
+      }
+
+      // 🔥 3. Preparar dados para envio
+      const fotoData = {
+        titulo: novaFoto.titulo,
+        descricao: novaFoto.descricao,
+        data_evento: novaFoto.data_evento || null,
+        evento_id: novaFoto.evento_id || null,
+        url_img: url_img
+      };
+
+      console.log("Dados a serem enviados:", fotoData);
+
+      if (editingPhoto) {
+        fotoData.id = editingPhoto.id;
+      }
+
+      // 🔥 4. Salvar ou editar foto no banco
+      const endpoint = "/api/fotos/editar";
+      const method = editingPhoto ? "PUT" : "POST";
+      
+      console.log(`Enviando para: ${endpoint} com método: ${method}`);
+      
+      const res = await fetch(endpoint, {
+        method: method,
+        headers: { 
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify(fotoData)
       });
 
-      if (!uploadRes.ok) {
-        const errorData = await uploadRes.json();
-        throw new Error('Erro no upload da imagem: ' + (errorData.error || 'Upload falhou'));
+      const saved = await res.json();
+      console.log("Resposta do servidor:", saved);
+
+      if (res.ok) {
+        console.log("Sucesso! Recarregando dados...");
+        await carregarDados();
+
+        setSnackbarMessage(
+          editingPhoto 
+            ? "Foto atualizada com sucesso!" 
+            : "Foto adicionada com sucesso!"
+        );
+        setOpenSnackbar(true);
+        handleCloseDialog();
+      } else {
+        const errorMsg = saved.error || 'Erro desconhecido';
+        console.error("Erro na resposta:", errorMsg);
+        setSnackbarMessage("Erro ao salvar foto: " + errorMsg);
+        setOpenSnackbar(true);
       }
-
-      const uploadData = await uploadRes.json();
-      url_img = uploadData.url;
-      console.log("Upload bem sucedido. URL:", url_img);
-    }
-
-    // 🔥 3. Preparar dados para envio
-    const fotoData = {
-      titulo: novaFoto.titulo,
-      descricao: novaFoto.descricao,
-      data_evento: novaFoto.data_evento || null,
-      evento_id: novaFoto.evento_id || null,
-      url_img: url_img // Note: mudei de "url" para "url_img" para bater com o backend
-    };
-
-    console.log("Dados a serem enviados:", fotoData);
-
-    if (editingPhoto) {
-      fotoData.id = editingPhoto.id;
-    }
-
-    // 🔥 4. Salvar ou editar foto no banco
-    const endpoint = editingPhoto ? "/api/fotos/editar" : "/api/fotos/editar";
-    const method = editingPhoto ? "PUT" : "POST";
-    
-    console.log(`Enviando para: ${endpoint} com método: ${method}`);
-    
-    const res = await fetch(endpoint, {
-      method: method,
-      headers: { 
-        "Content-Type": "application/json" 
-      },
-      body: JSON.stringify(fotoData)
-    });
-
-    const saved = await res.json();
-    console.log("Resposta do servidor:", saved);
-
-    if (res.ok) {
-      console.log("Sucesso! Recarregando dados...");
-      await carregarDados();
-
-      setSnackbarMessage(
-        editingPhoto 
-          ? "Foto atualizada com sucesso!" 
-          : "Foto adicionada com sucesso!"
-      );
+    } catch (err) {
+      console.error("Erro completo:", err);
+      setSnackbarMessage("Erro inesperado: " + err.message);
       setOpenSnackbar(true);
-      handleCloseDialog();
-    } else {
-      const errorMsg = saved.error || 'Erro desconhecido';
-      console.error("Erro na resposta:", errorMsg);
-      setSnackbarMessage("Erro ao salvar foto: " + errorMsg);
-      setOpenSnackbar(true);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Erro completo:", err);
-    setSnackbarMessage("Erro inesperado: " + err.message);
-    setOpenSnackbar(true);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const confirmarExclusao = async () => {
     if (!fotoParaExcluir) return;
@@ -309,7 +308,7 @@ export default function GerenciarFotos() {
                     <CardMedia 
                       component="img" 
                       height="160" 
-                      image={foto.url} 
+                      image={foto.url || foto.url_img} // Suporte para ambos os nomes
                       alt={foto.titulo}
                       sx={{ objectFit: 'cover' }}
                     />
