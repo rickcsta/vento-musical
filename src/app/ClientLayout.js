@@ -3,10 +3,10 @@
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Providers } from './providers';
-import dynamic from 'next/dynamic';
-
-const Header = dynamic(() => import('@/components/layout/Header'), { ssr: false });
-const Footer = dynamic(() => import('@/components/layout/Footer'), { ssr: false });
+import { usePathname } from 'next/navigation';
+import Header from '@/components/layout/Header'; // Importação direta
+import Footer from '@/components/layout/Footer'; // Importação direta
+import { useEffect, useState } from 'react'; // Adicione useState
 
 const theme = createTheme({
   palette: {
@@ -26,17 +26,36 @@ const theme = createTheme({
   },
 });
 
-export default function ClientLayout({ children }) {
+export default function ClientLayoutLayout({ children }) {
+  const pathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Verifica se está em uma rota de admin
+  const isAdminRoute = pathname?.startsWith('/admin');
+  
   return (
-    <Providers>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Header />
-        <main style={{ minHeight: '70vh', backgroundColor: '#F5F9F5', paddingTop: '20px' }}>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Providers>
+        {/* Renderiza condicionalmente no cliente */}
+        {isClient && !isAdminRoute && <Header />}
+        
+        {/* Mantenha a estrutura do main consistente */}
+        <div style={{ 
+          minHeight: '70vh', 
+          backgroundColor: '#F5F9F5', 
+          paddingTop: isAdminRoute ? '0' : '20px',
+          position: 'relative'
+        }}>
           {children}
-        </main>
-        <Footer />
-      </ThemeProvider>
-    </Providers>
+        </div>
+        
+        {isClient && !isAdminRoute && <Footer />}
+      </Providers>
+    </ThemeProvider>
   );
 }

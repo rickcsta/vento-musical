@@ -3,18 +3,23 @@
 import { useState } from 'react';
 import {
   Box,
-  Drawer,
   AppBar,
   Toolbar,
-  List,
+  Container,
   Typography,
-  Divider,
   IconButton,
+  Menu,
+  MenuItem,
+  Button,
+  Tooltip,
+  Avatar,
+  Drawer,
+  List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Container,
+  Divider,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -23,10 +28,10 @@ import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import EventIcon from '@mui/icons-material/Event';
 import LogoutIcon from '@mui/icons-material/Logout';
 import HomeIcon from '@mui/icons-material/Home';
+import PersonIcon from '@mui/icons-material/Person';
 import { signOut } from 'next-auth/react';
 import AdminGuard from './AdminGuard';
-
-const drawerWidth = 240;
+import Link from 'next/link';
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, href: '/admin' },
@@ -37,128 +42,239 @@ const menuItems = [
 
 export default function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorElUser, setAnchorElUser] = useState(null);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  const handleOpenUserMenu = (event) => {
+    setAnchorElUser(event.currentTarget);
+  };
+
+  const handleCloseUserMenu = () => {
+    setAnchorElUser(null);
+  };
+
   const handleLogout = async () => {
     try {
-      await signOut({ redirect: true, callbackUrl: '/login' }); // limpa cookie JWT e redireciona
+      await signOut({ redirect: true, callbackUrl: '/login' });
+      handleCloseUserMenu();
     } catch (error) {
       console.error("Erro ao deslogar:", error);
     }
   };
 
   const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          Painel Admin
-        </Typography>
-      </Toolbar>
+    <Box onClick={handleDrawerToggle} sx={{ textAlign: 'center' }}>
+      <Typography variant="h6" sx={{ my: 2 }}>
+        Painel Admin
+      </Typography>
       <Divider />
       <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton href={item.href}>
-              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemIcon>
+                {item.icon}
+              </ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItemButton>
           </ListItem>
         ))}
-      </List>
-      <Divider />
-      <List>
+        <Divider sx={{ my: 1 }} />
         <ListItem disablePadding>
           <ListItemButton href="/">
-            <ListItemIcon><HomeIcon /></ListItemIcon>
+            <ListItemIcon>
+              <HomeIcon />
+            </ListItemIcon>
             <ListItemText primary="Voltar ao Site" />
           </ListItemButton>
         </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton onClick={handleLogout}>
-            <ListItemIcon><LogoutIcon /></ListItemIcon>
-            <ListItemText primary="Sair" />
-          </ListItemButton>
-        </ListItem>
       </List>
-    </div>
+    </Box>
   );
 
   return (
     <AdminGuard>
-      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <AppBar
-          position="fixed"
+          position="static"
           sx={{
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            ml: { sm: `${drawerWidth}px` },
             backgroundColor: '#1B5E20',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           }}
         >
-          <Toolbar>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" noWrap component="div">
-              Área Administrativa
-            </Typography>
-          </Toolbar>
+          <Container maxWidth="xl">
+            <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
+              {/* Logo/Brand para desktop */}
+              <Typography
+                variant="h6"
+                noWrap
+                component={Link}
+                href="/admin"
+                sx={{
+                  mr: 2,
+                  display: { xs: 'none', md: 'flex' },
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                  letterSpacing: '.1rem',
+                  color: 'inherit',
+                  textDecoration: 'none',
+                }}
+              >
+                Área Administrativa
+              </Typography>
+
+              {/* Menu Mobile */}
+              <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
+                <IconButton
+                  size="large"
+                  aria-label="menu"
+                  aria-controls="menu-appbar"
+                  aria-haspopup="true"
+                  onClick={handleDrawerToggle}
+                  color="inherit"
+                >
+                  <MenuIcon />
+                </IconButton>
+              </Box>
+
+              {/* Logo/Brand para mobile */}
+              <Typography
+                variant="h5"
+                noWrap
+                component={Link}
+                href="/admin"
+                sx={{
+                  mr: 2,
+                  display: { xs: 'flex', md: 'none' },
+                  flexGrow: 1,
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                  letterSpacing: '.1rem',
+                  color: 'inherit',
+                  textDecoration: 'none',
+                }}
+              >
+                Admin
+              </Typography>
+
+              {/* Menu Desktop */}
+              <Box sx={{ 
+                flexGrow: 1, 
+                display: { xs: 'none', md: 'flex' },
+                justifyContent: 'center',
+                gap: 1
+              }}>
+                {menuItems.map((item) => (
+                  <Button
+                    key={item.text}
+                    component={Link}
+                    href={item.href}
+                    sx={{
+                      my: 2,
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      }
+                    }}
+                  >
+                    {item.icon}
+                    {item.text}
+                  </Button>
+                ))}
+              </Box>
+
+              {/* Menu do usuário */}
+              <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Button
+                  component={Link}
+                  href="/"
+                  sx={{
+                    color: 'white',
+                    display: { xs: 'none', sm: 'flex' },
+                    alignItems: 'center',
+                    gap: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    }
+                  }}
+                >
+                  <HomeIcon fontSize="small" />
+                  <Typography sx={{ display: { xs: 'none', md: 'block' } }}>
+                    Voltar ao Site
+                  </Typography>
+                </Button>
+
+                <Tooltip title="Configurações da conta">
+                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                    <Avatar sx={{ bgcolor: 'white', color: '#1B5E20', width: 32, height: 32 }}>
+                      <PersonIcon fontSize="small" />
+                    </Avatar>
+                  </IconButton>
+                </Tooltip>
+                <Menu
+                  sx={{ mt: '45px' }}
+                  id="menu-appbar"
+                  anchorEl={anchorElUser}
+                  anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  keepMounted
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  open={Boolean(anchorElUser)}
+                  onClose={handleCloseUserMenu}
+                >
+                  <MenuItem onClick={handleLogout}>
+                    <ListItemIcon>
+                      <LogoutIcon fontSize="small" />
+                    </ListItemIcon>
+                    <Typography textAlign="center">Sair</Typography>
+                  </MenuItem>
+                </Menu>
+              </Box>
+            </Toolbar>
+          </Container>
         </AppBar>
 
-        <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            ModalProps={{ keepMounted: true }}
-            sx={{
-              display: { xs: 'block', sm: 'none' },
-              '& .MuiDrawer-paper': {
-                boxSizing: 'border-box',
-                width: drawerWidth,
-                backgroundColor: '#F5F9F5',
-              },
-            }}
-          >
-            {drawer}
-          </Drawer>
+        {/* Drawer Mobile */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true,
+          }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: 280,
+              backgroundColor: '#F5F9F5',
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
 
-          <Drawer
-            variant="permanent"
-            sx={{
-              display: { xs: 'none', sm: 'block' },
-              '& .MuiDrawer-paper': {
-                boxSizing: 'border-box',
-                width: drawerWidth,
-                backgroundColor: '#FFFFFF',
-                borderRight: '1px solid #E0E0E0',
-              },
-            }}
-            open
-          >
-            {drawer}
-          </Drawer>
-        </Box>
-
+        {/* Conteúdo principal */}
         <Box
           component="main"
           sx={{
             flexGrow: 1,
             p: 3,
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            minHeight: '100vh',
             backgroundColor: '#F5F9F5',
+            minHeight: 'calc(100vh - 64px)',
           }}
         >
-          <Toolbar />
           <Container maxWidth="lg" sx={{ mt: 2 }}>
             {children}
           </Container>
