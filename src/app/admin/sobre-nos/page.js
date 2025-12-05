@@ -20,11 +20,13 @@ import {
   DialogContentText,
   DialogActions,
   CircularProgress,
+  Avatar,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
+import PersonIcon from '@mui/icons-material/Person';
 
 export default function EditarSobreNos() {
   const [dados, setDados] = useState({
@@ -45,7 +47,6 @@ export default function EditarSobreNos() {
   const [membroParaRemover, setMembroParaRemover] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
-  const fileInputRef = useRef(null);
 
   // Carregar dados
   useEffect(() => {
@@ -55,14 +56,14 @@ export default function EditarSobreNos() {
         const data = await response.json();
         
         const carregado = {
-          titulo: data.sobre_nos.titulo,
-          descricao: data.sobre_nos.descricao,
-          missao: data.sobre_nos.missao,
-          equipe: data.equipe.map(m => ({ 
+          titulo: data.sobre_nos?.titulo || "",
+          descricao: data.sobre_nos?.descricao || "",
+          missao: data.sobre_nos?.missao || "",
+          equipe: (data.equipe || []).map(m => ({ 
             id: m.id || Date.now() + Math.random(),
-            nome: m.nome, 
-            cargo: m.cargo, 
-            fotoUrl: m.fotoUrl || '' 
+            nome: m.nome || "", 
+            cargo: m.cargo || "", 
+            fotoUrl: m.fotoUrl || "" 
           }))
         };
         setDados(carregado);
@@ -86,10 +87,18 @@ export default function EditarSobreNos() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Verifica tamanho para mobile
-    if (file.size > 10 * 1024 * 1024) { // 10MB
-      alert('A imagem é muito grande. Use uma foto menor (máximo 10MB).');
+    // Verifica tamanho (15MB máximo para galeria)
+    const maxSize = 15 * 1024 * 1024; // 15MB
+    if (file.size > maxSize) {
+      alert('A imagem é muito grande. Escolha uma foto menor (máximo 15MB).');
       e.target.value = ''; // Limpa o input
+      return;
+    }
+
+    // Verifica se é imagem
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione apenas imagens.');
+      e.target.value = '';
       return;
     }
 
@@ -104,26 +113,32 @@ export default function EditarSobreNos() {
   };
 
   const addMembro = () => {
-    if (novoMembro.nome && novoMembro.cargo) {
-      const novoId = Math.max(0, ...dados.equipe.map(m => m.id)) + 1;
+    if (!novoMembro.nome.trim() || !novoMembro.cargo.trim()) {
+      alert('Por favor, preencha nome e cargo.');
+      return;
+    }
 
-      setDados({ 
-        ...dados, 
-        equipe: [
-          ...dados.equipe, 
-          { 
-            ...novoMembro, 
-            id: novoId,
-            isNew: true, // Marca como novo para upload
-          }
-        ]
-      });
+    // Gera ID único baseado no timestamp
+    const novoId = Date.now() + Math.floor(Math.random() * 1000);
 
-      // Resetar
-      setNovoMembro({ nome: '', cargo: '', fotoUrl: '', file: null });
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    const novoMembroCompleto = {
+      id: novoId,
+      nome: novoMembro.nome.trim(),
+      cargo: novoMembro.cargo.trim(),
+      fotoUrl: novoMembro.fotoUrl,
+      file: novoMembro.file,
+      isNew: true, // Marca como novo para upload
+    };
+
+    setDados({ 
+      ...dados, 
+      equipe: [...dados.equipe, novoMembroCompleto]
+    });
+
+    // Resetar formulário
+    setNovoMembro({ nome: '', cargo: '', fotoUrl: '', file: null });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -134,6 +149,13 @@ export default function EditarSobreNos() {
 
   const removeMembro = () => {
     if (membroParaRemover !== null) {
+      const membroRemovido = dados.equipe[membroParaRemover];
+      
+      // Limpa URL de preview se existir
+      if (membroRemovido.fotoUrl && membroRemovido.fotoUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(membroRemovido.fotoUrl);
+      }
+
       const novaEquipe = dados.equipe.filter((_, i) => i !== membroParaRemover);
       setDados({ ...dados, equipe: novaEquipe });
       setOpenDeleteDialog(false);
@@ -142,7 +164,7 @@ export default function EditarSobreNos() {
   };
 
   const handleSave = async () => {
-    if (isSaving) return; // Previne múltiplos cliques
+    if (isSaving) return;
     
     setIsSaving(true);
     setUploadProgress({});
@@ -151,25 +173,18 @@ export default function EditarSobreNos() {
       // Primeiro, fazer upload das fotos dos novos membros
       const equipeComUploads = await Promise.all(
         dados.equipe.map(async (membro, index) => {
-          // Se tem arquivo para upload (novo membro ou foto alterada)
+          // Se tem arquivo para upload (novo membro com foto)
           if (membro.file) {
             try {
-              setUploadProgress(prev => ({ ...prev, [index]: 0 }));
+              setUploadProgress(prev => ({ ...prev, [membro.id]: 10 }));
               
               const form = new FormData();
               form.append("file", membro.file);
 
-              // Upload com timeout para mobile
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
               const upload = await fetch("/api/upload", {
                 method: "POST",
                 body: form,
-                signal: controller.signal,
               });
-
-              clearTimeout(timeoutId);
 
               if (!upload.ok) {
                 const errorText = await upload.text();
@@ -177,7 +192,12 @@ export default function EditarSobreNos() {
               }
 
               const uploaded = await upload.json();
-              setUploadProgress(prev => ({ ...prev, [index]: 100 }));
+              setUploadProgress(prev => ({ ...prev, [membro.id]: 100 }));
+              
+              // Limpa preview local se existir
+              if (membro.fotoUrl && membro.fotoUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(membro.fotoUrl);
+              }
               
               return { 
                 ...membro, 
@@ -192,7 +212,6 @@ export default function EditarSobreNos() {
               return { 
                 ...membro, 
                 file: null,
-                fotoUrl: '',
                 isNew: false 
               };
             }
@@ -212,6 +231,7 @@ export default function EditarSobreNos() {
           descricao: dados.descricao || "",
         },
         equipe: equipeComUploads.map(membro => ({
+          id: membro.id,
           nome: membro.nome,
           cargo: membro.cargo,
           fotoUrl: membro.fotoUrl || ""
@@ -255,17 +275,7 @@ export default function EditarSobreNos() {
 
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      
-      // Mensagens amigáveis para mobile
-      let errorMessage = "Erro ao salvar!";
-      
-      if (error.name === 'AbortError' || error.message.includes('timeout')) {
-        errorMessage = "Tempo esgotado. Verifique sua conexão com a internet.";
-      } else if (error.message.includes('network')) {
-        errorMessage = "Problema de conexão. Verifique sua internet.";
-      }
-      
-      alert(errorMessage);
+      alert("Erro ao salvar! " + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -274,10 +284,11 @@ export default function EditarSobreNos() {
   // Limpa URLs de preview quando desmontar
   useEffect(() => {
     return () => {
-      // Limpa todos os object URLs
+      // Limpa preview do novo membro
       if (novoMembro.fotoUrl && novoMembro.fotoUrl.startsWith('blob:')) {
         URL.revokeObjectURL(novoMembro.fotoUrl);
       }
+      // Limpa previews dos membros na lista
       dados.equipe.forEach(membro => {
         if (membro.fotoUrl && membro.fotoUrl.startsWith('blob:')) {
           URL.revokeObjectURL(membro.fotoUrl);
@@ -287,22 +298,24 @@ export default function EditarSobreNos() {
   }, [novoMembro.fotoUrl, dados.equipe]);
 
   return (
-    <Container maxWidth="lg" sx={{ pb: 4 }}>
-      <Typography variant="h4" gutterBottom sx={{ mt: 2 }}>
+    <Container maxWidth="lg" sx={{ pb: 4, pt: 2 }}>
+      <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
         Editar Página "Sobre Nós"
       </Typography>
 
+      {/* Seção Sobre Nós */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6">Título</Typography>
+        <Typography variant="h6" gutterBottom>Título</Typography>
         <TextField 
           fullWidth 
           value={dados.titulo} 
           onChange={handleChange('titulo')} 
           margin="normal"
           size="small"
+          placeholder="Digite o título da página"
         />
 
-        <Typography variant="h6" sx={{ mt: 3 }}>Descrição</Typography>
+        <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Descrição</Typography>
         <TextField 
           fullWidth 
           multiline 
@@ -311,9 +324,10 @@ export default function EditarSobreNos() {
           onChange={handleChange('descricao')} 
           margin="normal"
           size="small"
+          placeholder="Descreva sua empresa/organização"
         />
 
-        <Typography variant="h6" sx={{ mt: 3 }}>Missão</Typography>
+        <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Missão</Typography>
         <TextField 
           fullWidth 
           multiline 
@@ -322,180 +336,222 @@ export default function EditarSobreNos() {
           onChange={handleChange('missao')} 
           margin="normal"
           size="small"
+          placeholder="Qual é a missão da sua empresa?"
         />
       </Paper>
 
+      {/* Seção Equipe */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Equipe</Typography>
+        <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+          Equipe ({dados.equipe.length} membro{dados.equipe.length !== 1 ? 's' : ''})
+        </Typography>
 
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {dados.equipe.map((membro, index) => (
-            <Grid item xs={12} sm={6} md={4} key={membro.id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-                      {membro.fotoUrl ? (
-                        <img 
-                          src={membro.fotoUrl} 
-                          alt={membro.nome} 
-                          style={{ 
-                            width: 50, 
-                            height: 50, 
-                            borderRadius: '50%',
-                            objectFit: 'cover'
-                          }} 
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <Box sx={{ 
-                          width: 50, 
-                          height: 50, 
-                          borderRadius: '50%',
-                          bgcolor: 'grey.200',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Sem foto
-                          </Typography>
-                        </Box>
-                      )}
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="subtitle1" noWrap>
-                          {membro.nome}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {membro.cargo}
-                        </Typography>
-                        {uploadProgress[index] !== undefined && uploadProgress[index] < 100 && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                            <CircularProgress size={16} />
-                            <Typography variant="caption">
-                              {uploadProgress[index]}%
-                            </Typography>
-                          </Box>
+        {/* Lista de Membros */}
+        {dados.equipe.length > 0 ? (
+          <Grid container spacing={2} sx={{ mb: 4 }}>
+            {dados.equipe.map((membro) => (
+              <Grid item xs={12} sm={6} md={4} key={membro.id}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent sx={{ p: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                        {membro.fotoUrl ? (
+                          <Avatar
+                            src={membro.fotoUrl}
+                            alt={membro.nome}
+                            sx={{ 
+                              width: 60, 
+                              height: 60,
+                              border: '2px solid',
+                              borderColor: 'primary.light'
+                            }}
+                            onError={(e) => {
+                              e.target.src = '';
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <Avatar
+                            sx={{ 
+                              width: 60, 
+                              height: 60,
+                              bgcolor: 'primary.light',
+                              color: 'primary.contrastText'
+                            }}
+                          >
+                            <PersonIcon />
+                          </Avatar>
                         )}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'bold' }}>
+                            {membro.nome}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" noWrap>
+                            {membro.cargo}
+                          </Typography>
+                          {uploadProgress[membro.id] !== undefined && uploadProgress[membro.id] < 100 && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                              <CircularProgress size={16} />
+                              <Typography variant="caption" color="text.secondary">
+                                Enviando... {uploadProgress[membro.id]}%
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
                       </Box>
+                      <IconButton 
+                        color="error" 
+                        onClick={() => confirmRemoveMembro(dados.equipe.findIndex(m => m.id === membro.id))}
+                        aria-label="remover membro"
+                        size="small"
+                        sx={{ ml: 1 }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
                     </Box>
-                    <IconButton 
-                      color="error" 
-                      onClick={() => confirmRemoveMembro(index)}
-                      aria-label="remover membro"
-                      size="small"
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        ) : (
+          <Box sx={{ textAlign: 'center', py: 4, mb: 2 }}>
+            <PersonIcon sx={{ fontSize: 60, color: 'grey.400', mb: 2 }} />
+            <Typography color="text.secondary">
+              Nenhum membro na equipe ainda
+            </Typography>
+          </Box>
+        )}
 
-        <Typography variant="subtitle1" gutterBottom>Adicionar Membro</Typography>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4}>
-            <TextField 
-              fullWidth 
-              label="Nome" 
-              value={novoMembro.nome} 
-              onChange={handleMembroChange('nome')} 
-              size="small" 
-              required
-              margin="none"
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField 
-              fullWidth 
-              label="Cargo" 
-              value={novoMembro.cargo} 
-              onChange={handleMembroChange('cargo')} 
-              size="small" 
-              required
-              margin="none"
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Button 
-              variant="outlined" 
-              component="label" 
-              fullWidth 
-              size="small"
-              startIcon={<CloudUploadIcon />}
-            >
-              Foto
-              <input 
-                type="file" 
-                hidden 
-                onChange={handleMembroFoto}
-                accept="image/*"
-                capture="environment" // Usa câmera no mobile
-                ref={fileInputRef}
+        {/* Formulário para Adicionar Membro */}
+        <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+          Adicionar Novo Membro
+        </Typography>
+        <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={4}>
+              <TextField 
+                fullWidth 
+                label="Nome completo" 
+                value={novoMembro.nome} 
+                onChange={handleMembroChange('nome')} 
+                size="small"
+                required
+                margin="none"
+                placeholder="Ex: João Silva"
               />
-            </Button>
-            {novoMembro.fotoUrl && (
-              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <img 
-                  src={novoMembro.fotoUrl} 
-                  alt="preview" 
-                  style={{ 
-                    width: 50, 
-                    height: 50, 
-                    borderRadius: '50%',
-                    objectFit: 'cover'
-                  }} 
-                />
-                <Typography variant="caption" color="text.secondary">
-                  {novoMembro.file?.name?.substring(0, 20) || 'Preview'}
-                </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <TextField 
+                fullWidth 
+                label="Cargo/Função" 
+                value={novoMembro.cargo} 
+                onChange={handleMembroChange('cargo')} 
+                size="small"
+                required
+                margin="none"
+                placeholder="Ex: Diretor Executivo"
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Button 
+                  variant="outlined" 
+                  component="label" 
+                  fullWidth 
+                  size="small"
+                  startIcon={<PhotoLibraryIcon />}
+                >
+                  Escolher da Galeria
+                  <input 
+                    type="file" 
+                    hidden 
+                    onChange={handleMembroFoto}
+                    accept="image/*"
+                    ref={fileInputRef}
+                    // REMOVI o capture para permitir galeria
+                  />
+                </Button>
+                {novoMembro.fotoUrl && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                    <Avatar
+                      src={novoMembro.fotoUrl}
+                      alt="Preview"
+                      sx={{ width: 40, height: 40 }}
+                    />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" display="block" noWrap>
+                        {novoMembro.file?.name || 'Imagem selecionada'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {(novoMembro.file?.size / (1024 * 1024)).toFixed(2)} MB
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
               </Box>
-            )}
+            </Grid>
           </Grid>
-        </Grid>
-
-        <Button 
-          onClick={addMembro} 
-          startIcon={<AddIcon />} 
-          sx={{ mt: 2 }}
-          disabled={!novoMembro.nome || !novoMembro.cargo}
-          variant="contained"
-          size="small"
-        >
-          Adicionar Membro
-        </Button>
+          
+          <Button 
+            onClick={addMembro} 
+            startIcon={<AddIcon />} 
+            sx={{ mt: 2 }}
+            disabled={!novoMembro.nome.trim() || !novoMembro.cargo.trim()}
+            variant="contained"
+            size="medium"
+            fullWidth
+          >
+            Adicionar à Equipe
+          </Button>
+        </Paper>
+        
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+          Dica: Use fotos profissionais com fundo neutro. Tamanho máximo: 15MB.
+        </Typography>
       </Paper>
 
+      {/* Botão Salvar */}
       {algoMudou && (
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 4 }}>
-          <Button 
-            variant="contained" 
-            startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />} 
-            onClick={handleSave}
-            size="large"
-            disabled={isSaving}
-            sx={{ minWidth: 200 }}
-          >
-            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-          </Button>
+        <Box sx={{ 
+          position: 'sticky', 
+          bottom: 0, 
+          bgcolor: 'background.paper', 
+          py: 2, 
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          zIndex: 10
+        }}>
+          <Container maxWidth="lg">
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              <Button 
+                variant="contained" 
+                startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />} 
+                onClick={handleSave}
+                size="large"
+                disabled={isSaving}
+                sx={{ minWidth: 200 }}
+              >
+                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </Box>
+          </Container>
         </Box>
       )}
 
+      {/* Notificação de Sucesso */}
       <Snackbar 
         open={openSnackbar} 
         autoHideDuration={3000} 
         onClose={() => setOpenSnackbar(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity="success" onClose={() => setOpenSnackbar(false)}>
+        <Alert severity="success" onClose={() => setOpenSnackbar(false)} sx={{ width: '100%' }}>
           Alterações salvas com sucesso!
         </Alert>
       </Snackbar>
 
+      {/* Diálogo de Confirmação para Remover */}
       <Dialog
         open={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}
@@ -503,15 +559,15 @@ export default function EditarSobreNos() {
         <DialogTitle>Remover Membro</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Tem certeza que deseja remover este membro? 
+            Tem certeza que deseja remover este membro da equipe?
           </DialogContentText>
-          <DialogContentText>
+          <DialogContentText sx={{ mt: 1 }}>
             Esta ação não pode ser desfeita.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDeleteDialog(false)}>Cancelar</Button>
-          <Button onClick={removeMembro} color="error" autoFocus>
+          <Button onClick={removeMembro} color="error" variant="contained">
             Remover
           </Button>
         </DialogActions>
