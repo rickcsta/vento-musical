@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { del } from '@vercel/blob';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req) {
   try {
     const body = await req.json();
     const { titulo, descricao, data_evento, evento_id, url_img } = body;
+
+    console.log("Dados recebidos POST:", { titulo, url_img, evento_id });
 
     // Validação básica
     if (!titulo || !url_img) {
@@ -42,6 +47,8 @@ export async function PUT(req) {
     const body = await req.json();
     const { id, titulo, descricao, data_evento, evento_id, url_img } = body;
 
+    console.log("Dados recebidos PUT:", { id, titulo, url_img });
+
     if (!id) {
       return NextResponse.json(
         { error: "ID da foto é obrigatório" },
@@ -56,6 +63,16 @@ export async function PUT(req) {
       `SELECT url_img FROM foto WHERE id = $1`,
       [id]
     );
+
+    // Se houver nova imagem e a atual for diferente, deleta a antiga do blob
+    if (url_img && fotoAtual.rows[0]?.url_img && fotoAtual.rows[0].url_img !== url_img) {
+      try {
+        await del(fotoAtual.rows[0].url_img);
+        console.log("Imagem antiga deletada do blob");
+      } catch (blobError) {
+        console.error("Erro ao deletar imagem antiga do blob:", blobError);
+      }
+    }
 
     const res = await client.query(
       `UPDATE foto 
@@ -94,6 +111,8 @@ export async function DELETE(req) {
     const body = await req.json();
     const { id } = body;
 
+    console.log("Deletando foto ID:", id);
+
     if (!id) {
       return NextResponse.json(
         { error: "ID da foto é obrigatório" },
@@ -127,6 +146,7 @@ export async function DELETE(req) {
     if (url_img) {
       try {
         await del(url_img);
+        console.log("Imagem deletada do blob:", url_img);
       } catch (blobError) {
         console.error("Erro ao deletar do blob:", blobError);
         // Continua mesmo se falhar a exclusão do blob

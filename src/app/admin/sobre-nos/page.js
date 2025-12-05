@@ -291,7 +291,6 @@ export default function EditarSobreNos() {
                 hidden 
                 onChange={handleMembroFoto}
                 accept="image/*"
-                capture="environment" // Para mobile, permite usar a câmera
               />
             </Button>
             
