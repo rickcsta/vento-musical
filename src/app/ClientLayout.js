@@ -2,28 +2,17 @@
 
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { usePathname } from 'next/navigation'; 
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import { Providers } from "./providers";
-import { useEffect, useState } from 'react';
+import { Providers } from './providers';
+import dynamic from 'next/dynamic';
+
+const Header = dynamic(() => import('@/components/layout/Header'), { ssr: false });
+const Footer = dynamic(() => import('@/components/layout/Footer'), { ssr: false });
 
 const theme = createTheme({
   palette: {
-    primary: {
-      main: '#2E7D32',
-      light: '#4CAF50',
-      dark: '#1B5E20',
-    },
-    secondary: {
-      main: '#388E3C',
-      light: '#66BB6A',
-      dark: '#2E7D32',
-    },
-    background: {
-      default: '#F5F9F5',
-      paper: '#FFFFFF',
-    },
+    primary: { main: '#2E7D32', light: '#4CAF50', dark: '#1B5E20' },
+    secondary: { main: '#388E3C', light: '#66BB6A', dark: '#2E7D32' },
+    background: { default: '#F5F9F5', paper: '#FFFFFF' },
   },
   components: {
     MuiAppBar: {
@@ -38,34 +27,23 @@ const theme = createTheme({
 });
 
 export default function ClientLayout({ children }) {
-  const pathname = usePathname();
-  const [showHeaderFooter, setShowHeaderFooter] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setShowHeaderFooter(!pathname.startsWith('/admin'));
-  }, [pathname]);
-
   return (
     <Providers>
       <ThemeProvider theme={theme}>
         <CssBaseline />
 
-        {/* Só renderiza no client (evita mismatch) */}
-        {mounted && showHeaderFooter && <Header />}
-
+        {/* Header e Footer sempre client-only */}
+        <Header />
         <main
           style={{
             minHeight: '70vh',
             backgroundColor: '#F5F9F5',
-            paddingTop: showHeaderFooter ? '20px' : 0,
+            paddingTop: '20px',
           }}
         >
           {children}
         </main>
-
-        {mounted && showHeaderFooter && <Footer />}
+        <Footer />
       </ThemeProvider>
     </Providers>
   );

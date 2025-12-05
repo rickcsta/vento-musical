@@ -32,7 +32,12 @@ export default function EditarSobreNos() {
     equipe: []
   });
   const [dadosOriginais, setDadosOriginais] = useState(null);
-  const [novoMembro, setNovoMembro] = useState({ nome: '', cargo: '', fotoUrl: '' });
+  const [novoMembro, setNovoMembro] = useState({
+  nome: '',
+  cargo: '',
+  fotoUrl: '',
+  file: null, // novo
+});
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [membroParaRemover, setMembroParaRemover] = useState(null);
@@ -63,18 +68,19 @@ export default function EditarSobreNos() {
   const handleChange = campo => e => setDados({ ...dados, [campo]: e.target.value });
   const handleMembroChange = campo => e => setNovoMembro({ ...novoMembro, [campo]: e.target.value });
 
-  const handleMembroFoto = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+ const handleMembroFoto = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const form = new FormData();
-    form.append("file", file);
+  // Cria preview local sem subir arquivo
+  const preview = URL.createObjectURL(file);
 
-    const res = await fetch("/api/upload", { method: "POST", body: form });
-    const data = await res.json();
-
-    setNovoMembro({ ...novoMembro, fotoUrl: data.url });
-  };
+  setNovoMembro({
+    ...novoMembro,
+    fotoUrl: preview, // preview só no browser
+    file: file,       // arquivo salvo para upload futuro
+  });
+};
 
   const addMembro = () => {
     if (novoMembro.nome && novoMembro.cargo) {
@@ -101,35 +107,52 @@ export default function EditarSobreNos() {
     }
   };
 
-  const handleSave = async () => {
-    try {
-      const response = await fetch("/api/sobre-nos/editar", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sobre_nos: {
-            id: 1,
-            titulo: dados.titulo || "",
-            missao: dados.missao || "",
-            descricao: dados.descricao || "",
-          },
-          equipe: dados.equipe
-        }),
-      });
+ const handleSave = async () => {
+  try {
+    // 1️⃣ Upload das fotos novas
+    for (const membro of dados.equipe) {
+      if (membro.file) {
+        const form = new FormData();
+        form.append("file", membro.file);
 
-      if (!response.ok) throw new Error("Erro ao salvar");
+        const upload = await fetch("/api/upload", {
+          method: "POST",
+          body: form
+        });
 
-      const result = await response.json();
-      setDadosOriginais(JSON.parse(JSON.stringify(dados)));
-      setOpenSnackbar(true);
-
-      console.log(`${result.fotosExcluidas || 0} fotos excluídas do blob`);
-
-    } catch (error) {
-      console.error(error);
-      alert("Erro ao salvar!");
+        const uploaded = await upload.json();
+        membro.fotoUrl = uploaded.url; // atualiza a URL final
+        delete membro.file; // remove o arquivo do objeto
+      }
     }
-  };
+
+    // 2️⃣ Salvar os dados no banco com as URLs corretas
+    const response = await fetch("/api/sobre-nos/editar", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sobre_nos: {
+          id: 1,
+          titulo: dados.titulo || "",
+          missao: dados.missao || "",
+          descricao: dados.descricao || "",
+        },
+        equipe: dados.equipe
+      }),
+    });
+
+    if (!response.ok) throw new Error("Erro ao salvar");
+
+    const result = await response.json();
+    setDadosOriginais(JSON.parse(JSON.stringify(dados)));
+    setOpenSnackbar(true);
+
+  } catch (error) {
+    console.error(error);
+    alert("Erro ao salvar!");
+  }
+};
+
 
   return (
     <Container maxWidth="lg">
