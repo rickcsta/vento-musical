@@ -276,7 +276,7 @@ export default function HomePage() {
       </Box>
 
       {/* Cards de Funcionalidades */}
-      <Grid container spacing={3} sx={{ mb: 6 }}>
+      <Grid container spacing={3} sx={{ mb: 6, justifyContent:"center" }}>
         {/* Card Sobre Nós */}
         <Grid item xs={12} md={4}>
           <Card 

@@ -49,6 +49,7 @@ export default function LoginPage() {
           margin="normal"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
         />
 
         <TextField
@@ -58,6 +59,7 @@ export default function LoginPage() {
           margin="normal"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
+          required
         />
 
         <Button

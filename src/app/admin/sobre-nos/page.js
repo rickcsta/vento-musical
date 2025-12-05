@@ -279,6 +279,9 @@ export default function EditarSobreNos() {
           <DialogContentText>
             Tem certeza que deseja remover este membro? 
           </DialogContentText>
+          <DialogContentText>
+            Esta ação não pode ser desfeita.
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDeleteDialog(false)}>Cancelar</Button>

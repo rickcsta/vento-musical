@@ -126,14 +126,26 @@ export default function Footer() {
           alignItems: 'center',
           gap: 2
         }}>
+          
           <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-            <Typography variant="body2" sx={{ opacity: 0.8 }}>
-              © {currentYear || '2024'} Projeto de Extensão - IFPB. Todos os direitos reservados.
-            </Typography>
-            <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.6 }}>
-              Site desenvolvido por [Henrique Bruno da Costa Oliveira]
-            </Typography>
-          </Box>
+  <Typography variant="body2" sx={{ opacity: 0.8 }}>
+    © {currentYear || '2024'} Projeto de Extensão - IFPB. Todos os direitos reservados.
+  </Typography>
+
+  <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.6 }}>
+    Site desenvolvido por{' '}
+    <Link
+      href="https://www.linkedin.com/in/henrique-bruno-4522073a0/"
+      target="_blank"
+      rel="noopener noreferrer"
+      underline="none"
+      sx={{ color: 'inherit' }}
+    >
+      Henrique Bruno da Costa Oliveira
+    </Link>
+  </Typography>
+</Box>
+
 
           <Box>
             <Typography variant="body2" sx={{ mb: 1, textAlign: { xs: 'center', sm: 'right' }, opacity: 0.8 }}>
