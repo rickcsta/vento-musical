@@ -122,7 +122,8 @@ export default function GaleriaFotosPage() {
           titulo: eventoInfo?.titulo || 'Evento Desconhecido',
           descricao: eventoInfo?.descricao,
           data: eventoInfo?.data_evento,
-          local: eventoInfo?.local
+          local: eventoInfo?.local,
+          link_drive: eventoInfo?.link_drive
         } : {
           id: 'sem-evento',
           titulo: 'Outras Fotos',
@@ -330,7 +331,6 @@ export default function GaleriaFotosPage() {
                       {evento.descricao}
                     </Typography>
                   )}
-                  
                   <Grid container spacing={3}>
                     {dadosEvento.fotos.map((foto) => (
                       <Grid item xs={12} sm={6} md={4} key={foto.id}>
@@ -401,6 +401,47 @@ export default function GaleriaFotosPage() {
                       </Grid>
                     ))}
                   </Grid>
+
+                  {isOpen && evento.link_drive && (
+  <Box sx={{ mb: 3 }}>
+    <Paper
+      elevation={3}
+      sx={{
+        marginTop: 5,
+        p: 2.5,
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        borderRadius: 3,
+        transition: "0.3s",
+        border: "1px solid",
+        borderColor: "primary.main",
+        cursor: "pointer",
+        "&:hover": {
+          transform: "translateY(-3px)",
+          boxShadow: 6,
+          backgroundColor: "primary.main",
+          color: "white",
+        },
+      }}
+      component="a"
+      href={evento.link_drive}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <PhotoAlbumIcon sx={{ fontSize: 40 }} />
+      <Box>
+        <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
+          Ver pasta completa no Google Drive
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.8 }}>
+          Clique para abrir no navegador
+        </Typography>
+      </Box>
+    </Paper>
+  </Box>
+
+)}
                 </AccordionDetails>
               </Accordion>
             );

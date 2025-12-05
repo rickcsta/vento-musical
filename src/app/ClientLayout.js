@@ -39,34 +39,33 @@ const theme = createTheme({
 
 export default function ClientLayout({ children }) {
   const pathname = usePathname();
+  const [showHeaderFooter, setShowHeaderFooter] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [showHeaderFooter, setShowHeaderFooter] = useState(true);
 
   useEffect(() => {
     setMounted(true);
-    if (pathname) {
-      setShowHeaderFooter(!pathname.startsWith('/admin'));
-    }
+    setShowHeaderFooter(!pathname.startsWith('/admin'));
   }, [pathname]);
-
-  // Durante a renderização do servidor, mostre tudo
-  const isServer = !mounted;
 
   return (
     <Providers>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        {(isServer || showHeaderFooter) && <Header />}
-        
-        <main style={{ 
-          minHeight: '70vh', 
-          backgroundColor: '#F5F9F5',
-          paddingTop: (isServer || showHeaderFooter) ? '20px' : 0
-        }}>
+
+        {/* Só renderiza no client (evita mismatch) */}
+        {mounted && showHeaderFooter && <Header />}
+
+        <main
+          style={{
+            minHeight: '70vh',
+            backgroundColor: '#F5F9F5',
+            paddingTop: showHeaderFooter ? '20px' : 0,
+          }}
+        >
           {children}
         </main>
-        
-        {(isServer || showHeaderFooter) && <Footer />}
+
+        {mounted && showHeaderFooter && <Footer />}
       </ThemeProvider>
     </Providers>
   );

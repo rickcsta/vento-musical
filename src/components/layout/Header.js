@@ -30,7 +30,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
-import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import Image from "next/image";
 
 const navItems = [
   { name: 'Início', href: '/', icon: <HomeIcon /> },
@@ -67,28 +67,7 @@ export default function Header() {
   };
 
   // Se não estiver montado (no servidor), renderizar versão simplificada
-  if (!mounted) {
-    return (
-      <AppBar position="static">
-        <Container maxWidth="xl">
-          <Toolbar disableGutters>
-            <Typography
-              variant="h6"
-              noWrap
-              component="div"
-              sx={{
-                mr: 2,
-                fontWeight: 700,
-                color: 'inherit',
-              }}
-            >
-              VENTO MUSICAL
-            </Typography>
-          </Toolbar>
-        </Container>
-      </AppBar>
-    );
-  }
+   if (!mounted) return null;
 
   const isAuthenticated = status === 'authenticated';
   const isAdmin = session?.user?.role === 'admin' || session?.user?.email?.includes('admin');
@@ -96,26 +75,33 @@ export default function Header() {
   return (
     <>
       <AppBar position="static">
-        <Container maxWidth="xl">
-          <Toolbar disableGutters>
-            {/* Logo */}
-            <Typography
-              variant="h6"
-              noWrap
-              component={Link}
-              href="/"
-              sx={{
-                mr: 2,
-                fontWeight: 700,
-                color: 'inherit',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <MusicNoteIcon sx={{ mr: 1 }} />
-              VENTO MUSICAL
-            </Typography>
+  <Container maxWidth="xl">
+    <Toolbar disableGutters>
+      {/* Logo */}
+      <Typography
+        variant="h6"
+        noWrap
+        component={Link}
+        href="/"
+        sx={{
+          mr: 2,
+          fontWeight: 700,
+          color: "inherit",
+          textDecoration: "none",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <Image
+          src="/logo.png"
+          alt="Logo"
+          width={28}   // tamanho do ícone
+          height={28}
+          style={{ marginRight: 8 }}
+        />
+
+        VENTO MUSICAL
+      </Typography>
 
             {/* Menu Desktop */}
             <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>

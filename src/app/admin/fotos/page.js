@@ -103,72 +103,91 @@ export default function GerenciarFotos() {
   };
 
   const handleSavePhoto = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // Se tem arquivo, faz upload primeiro
-      let url_img = editingPhoto?.url;
-      
-      if (novaFoto.file) {
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", novaFoto.file);
+    // 🔥 1. Impedir mais de 2 fotos por evento
+    if (novaFoto.evento_id) {
+      const fotosDoEvento = fotos.filter(f => f.evento_id === novaFoto.evento_id);
 
-        const uploadRes = await fetch("/api/upload", {
-          method: "POST",
-          body: formDataUpload
-        });
+      // Se estiver editando, ignora a própria foto
+      const total = editingPhoto
+        ? fotosDoEvento.filter(f => f.id !== editingPhoto.id).length
+        : fotosDoEvento.length;
 
-        if (!uploadRes.ok) {
-          throw new Error('Erro no upload da imagem');
-        }
-
-        const uploadData = await uploadRes.json();
-        url_img = uploadData.url;
+      if (total >= 2) {
+        setSnackbarMessage("Este evento já possui 2 fotos. Exclua uma para adicionar outra.");
+        setOpenSnackbar(true);
+        setLoading(false);
+        return;
       }
+    }
 
-      // Prepara os dados da foto
-      const fotoData = {
-        titulo: novaFoto.titulo,
-        descricao: novaFoto.descricao,
-        data_evento: novaFoto.data_evento || null,
-        evento_id: novaFoto.evento_id || null,
-        url_img: url_img
-      };
+    // 🔥 2. Upload da imagem (caso tenha)
+    let url_img = editingPhoto?.url;
 
-      if (editingPhoto) {
-        fotoData.id = editingPhoto.id;
-      }
+    if (novaFoto.file) {
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", novaFoto.file);
 
-      const res = await fetch("/api/fotos/editar", {
-        method: editingPhoto ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fotoData)
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload
       });
 
-      const saved = await res.json();
-
-      if (res.ok) {
-        await carregarDados(); // Recarrega os dados
-        
-        setSnackbarMessage(
-          editingPhoto 
-            ? "Foto atualizada com sucesso!" 
-            : "Foto adicionada com sucesso!"
-        );
-        setOpenSnackbar(true);
-        handleCloseDialog();
-      } else {
-        setSnackbarMessage("Erro ao salvar foto: " + (saved.error || ''));
-        setOpenSnackbar(true);
+      if (!uploadRes.ok) {
+        throw new Error('Erro no upload da imagem');
       }
-    } catch (err) {
-      console.error(err);
-      setSnackbarMessage("Erro inesperado: " + err.message);
-      setOpenSnackbar(true);
-    } finally {
-      setLoading(false);
+
+      const uploadData = await uploadRes.json();
+      url_img = uploadData.url;
     }
-  };
+
+    // 🔥 3. Dados da foto
+    const fotoData = {
+      titulo: novaFoto.titulo,
+      descricao: novaFoto.descricao,
+      data_evento: novaFoto.data_evento || null,
+      evento_id: novaFoto.evento_id || null,
+      url_img: url_img
+    };
+
+    if (editingPhoto) {
+      fotoData.id = editingPhoto.id;
+    }
+
+    // 🔥 4. Salvar ou editar foto no banco
+    const res = await fetch("/api/fotos/editar", {
+      method: editingPhoto ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fotoData)
+    });
+
+    const saved = await res.json();
+
+    if (res.ok) {
+      await carregarDados();
+
+      setSnackbarMessage(
+        editingPhoto 
+          ? "Foto atualizada com sucesso!" 
+          : "Foto adicionada com sucesso!"
+      );
+      setOpenSnackbar(true);
+      handleCloseDialog();
+    } else {
+      setSnackbarMessage("Erro ao salvar foto: " + (saved.error || ''));
+      setOpenSnackbar(true);
+    }
+  } catch (err) {
+    console.error(err);
+    setSnackbarMessage("Erro inesperado: " + err.message);
+    setOpenSnackbar(true);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const confirmarExclusao = async () => {
     if (!fotoParaExcluir) return;

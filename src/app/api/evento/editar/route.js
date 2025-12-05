@@ -4,7 +4,7 @@ import pool from "@/lib/db";
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { titulo, descricao, data_evento, local } = body;
+    const { titulo, descricao, data_evento, local, link_drive } = body;
 
     // Validação básica
     if (!titulo || !titulo.trim()) {
@@ -17,14 +17,15 @@ export async function POST(req) {
     const client = await pool.connect();
     
     const res = await client.query(
-      `INSERT INTO evento (titulo, descricao, data_evento, local) 
-       VALUES ($1, $2, $3, $4) 
-       RETURNING id, titulo, descricao, data_evento, local`,
+      `INSERT INTO evento (titulo, descricao, data_evento, local, link_drive) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING id, titulo, descricao, data_evento, local, link_drive`,
       [
-        titulo.trim(),
-        descricao?.trim() || null,
-        data_evento || null,
-        local?.trim() || null
+        titulo.trim() || null,
+        descricao?.trim(), 
+        data_evento,
+        local?.trim(),
+        link_drive.trim()
       ]
     );
 
@@ -44,7 +45,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, titulo, descricao, data_evento, local } = body;
+    const { id, titulo, descricao, data_evento, local, link_drive} = body;
 
     if (!id) {
       return NextResponse.json(
@@ -81,14 +82,16 @@ export async function PUT(req) {
        SET titulo = $1,
            descricao = $2,
            data_evento = $3,
-           local = $4
-       WHERE id = $5
-       RETURNING id, titulo, descricao, data_evento, local`,
+           local = $4,
+          link_drive = $5
+       WHERE id = $6
+       RETURNING id, titulo, descricao, data_evento, local, link_drive`,
       [
-        titulo.trim(),
-        descricao?.trim() || null,
-        data_evento || null,
-        local?.trim() || null,
+        titulo.trim() || null,
+        descricao?.trim(),
+        data_evento,
+        local?.trim(),
+        link_drive.trim(),
         id
       ]
     );

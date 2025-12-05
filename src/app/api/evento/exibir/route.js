@@ -9,7 +9,8 @@ export async function GET() {
         titulo,
         descricao,
         data_evento,
-        local
+        local,
+        link_drive
       FROM evento
       ORDER BY data_evento DESC, titulo ASC
     `);

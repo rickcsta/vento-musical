@@ -22,7 +22,8 @@ export default function GerenciarEventos() {
     titulo: '',
     descricao: '',
     data_evento: '',
-    local: ''
+    local: '',
+    link_drive: ''
   });
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -92,7 +93,8 @@ export default function GerenciarEventos() {
         titulo: evento.titulo || '',
         descricao: evento.descricao || '',
         data_evento: evento.data_evento?.split('T')[0] || '',
-        local: evento.local || ''
+        local: evento.local || '',
+        link_drive: evento.link_drive || ''
       });
     } else {
       setEditingEvento(null);
@@ -100,7 +102,8 @@ export default function GerenciarEventos() {
         titulo: '', 
         descricao: '', 
         data_evento: '', 
-        local: '' 
+        local: '',
+        link_drive: ''
       });
     }
     setOpenDialog(true);
@@ -109,7 +112,7 @@ export default function GerenciarEventos() {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingEvento(null);
-    setNovoEvento({ titulo: '', descricao: '', data_evento: '', local: '' });
+    setNovoEvento({ titulo: '', descricao: '', data_evento: '', local: '', link_drive: '' });
   };
 
   const handleChange = field => event => {
@@ -131,7 +134,8 @@ export default function GerenciarEventos() {
         titulo: novoEvento.titulo.trim(),
         descricao: novoEvento.descricao.trim(),
         data_evento: novoEvento.data_evento || null,
-        local: novoEvento.local.trim() || null
+        local: novoEvento.local.trim() || null,
+        link_drive: novoEvento.link_drive.trim() 
       };
 
       if (editingEvento) {
@@ -417,7 +421,17 @@ export default function GerenciarEventos() {
             helperText="Local onde o evento aconteceu/acontecerá (opcional)"
             placeholder="Ex: Teatro Municipal, Praça Central, etc."
           />
-          
+
+          <TextField
+          fullWidth 
+            label="Link da pasta do Google Drive"
+            value={novoEvento.link_drive} 
+            onChange={handleChange("link_drive")} 
+            sx={{ mt: 2 }}
+            helperText="Cole aqui o link da pasta onde estão as fotos"
+            placeholder="Link da pasta do Google Drive"
+          />
+                  
           <Typography variant="caption" color="text.secondary" sx={{ mt: 3, display: 'block' }}>
             * Campos obrigatórios
           </Typography>
