@@ -83,15 +83,21 @@ export default function EditarSobreNos() {
 };
 
   const addMembro = () => {
-    if (novoMembro.nome && novoMembro.cargo) {
-      const novoId = Math.max(0, ...dados.equipe.map(m => m.id)) + 1;
-      setDados({ 
-        ...dados, 
-        equipe: [...dados.equipe, { ...novoMembro, id: novoId }] 
-      });
-      setNovoMembro({ nome: '', cargo: '', fotoUrl: '' });
-    }
-  };
+  if (novoMembro.nome && novoMembro.cargo) {
+    const novoId = Math.max(0, ...dados.equipe.map(m => m.id)) + 1;
+
+    setDados({ 
+      ...dados, 
+      equipe: [
+        ...dados.equipe, 
+        { ...novoMembro, id: novoId } // inclui file e fotoUrl
+      ]
+    });
+
+    // Resetar corretamente o novoMembro
+    setNovoMembro({ nome: '', cargo: '', fotoUrl: '', file: null });
+  }
+};
 
   const confirmRemoveMembro = (index) => {
     setMembroParaRemover(index);
@@ -109,8 +115,8 @@ export default function EditarSobreNos() {
 
  const handleSave = async () => {
   try {
-    // 1️⃣ Upload das fotos novas
-    for (const membro of dados.equipe) {
+    // Clona dados para evitar mutações diretas
+    const equipeAtualizada = await Promise.all(dados.equipe.map(async (membro) => {
       if (membro.file) {
         const form = new FormData();
         form.append("file", membro.file);
@@ -121,30 +127,32 @@ export default function EditarSobreNos() {
         });
 
         const uploaded = await upload.json();
-        membro.fotoUrl = uploaded.url; // atualiza a URL final
-        delete membro.file; // remove o arquivo do objeto
+        return { ...membro, fotoUrl: uploaded.url, file: null };
       }
-    }
+      return membro;
+    }));
 
-    // 2️⃣ Salvar os dados no banco com as URLs corretas
+    const payload = {
+      sobre_nos: {
+        id: 1,
+        titulo: dados.titulo || "",
+        missao: dados.missao || "",
+        descricao: dados.descricao || "",
+      },
+      equipe: equipeAtualizada
+    };
+
     const response = await fetch("/api/sobre-nos/editar", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sobre_nos: {
-          id: 1,
-          titulo: dados.titulo || "",
-          missao: dados.missao || "",
-          descricao: dados.descricao || "",
-        },
-        equipe: dados.equipe
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) throw new Error("Erro ao salvar");
 
     const result = await response.json();
-    setDadosOriginais(JSON.parse(JSON.stringify(dados)));
+    setDadosOriginais({ ...dados, equipe: equipeAtualizada });
+    setDados({ ...dados, equipe: equipeAtualizada });
     setOpenSnackbar(true);
 
   } catch (error) {
@@ -152,7 +160,6 @@ export default function EditarSobreNos() {
     alert("Erro ao salvar!");
   }
 };
-
 
   return (
     <Container maxWidth="lg">
