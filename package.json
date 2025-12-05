@@ -14,10 +14,10 @@
     "@mui/material": "^7.3.5",
     "@vercel/blob": "^2.0.0",
     "bcryptjs": "^3.0.3",
-    "next": "16.0.6",
+    "next": "^16.0.7",
     "next-auth": "^4.24.13",
     "pg": "^8.16.3",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
   }
 }
