@@ -25,7 +25,6 @@ import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import PersonIcon from '@mui/icons-material/Person';
 
 export default function EditarSobreNos() {
   const [dados, setDados] = useState({
@@ -47,9 +46,6 @@ export default function EditarSobreNos() {
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const fileInputRef = useRef(null);
-  
-  // Referência para armazenar URLs blob ativas
-  const blobUrlsRef = useRef(new Set());
 
   // Carregar dados
   useEffect(() => {
@@ -90,22 +86,15 @@ export default function EditarSobreNos() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Verifica tamanho
-    if (file.size > 15 * 1024 * 1024) { // 15MB
-      alert('A imagem é muito grande. Use uma foto menor (máximo 15MB).');
+    // Verifica tamanho para mobile
+    if (file.size > 10 * 1024 * 1024) { // 10MB
+      alert('A imagem é muito grande. Use uma foto menor (máximo 10MB).');
       e.target.value = ''; // Limpa o input
       return;
     }
 
-    // Revoga URL blob anterior se existir
-    if (novoMembro.fotoUrl && novoMembro.fotoUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(novoMembro.fotoUrl);
-      blobUrlsRef.current.delete(novoMembro.fotoUrl);
-    }
-
     // Cria preview local
     const preview = URL.createObjectURL(file);
-    blobUrlsRef.current.add(preview);
 
     setNovoMembro({
       ...novoMembro,
@@ -115,24 +104,22 @@ export default function EditarSobreNos() {
   };
 
   const addMembro = () => {
-    if (novoMembro.nome.trim() && novoMembro.cargo.trim()) {
-      const novoId = Date.now() + Math.random();
-      
-      const novoMembroCompleto = {
-        id: novoId,
-        nome: novoMembro.nome.trim(),
-        cargo: novoMembro.cargo.trim(),
-        fotoUrl: novoMembro.fotoUrl,
-        file: novoMembro.file,
-        isNew: true,
-      };
+    if (novoMembro.nome && novoMembro.cargo) {
+      const novoId = Math.max(0, ...dados.equipe.map(m => m.id)) + 1;
 
       setDados({ 
         ...dados, 
-        equipe: [...dados.equipe, novoMembroCompleto]
+        equipe: [
+          ...dados.equipe, 
+          { 
+            ...novoMembro, 
+            id: novoId,
+            isNew: true, // Marca como novo para upload
+          }
+        ]
       });
 
-      // Resetar sem revogar a URL - ela agora pertence ao membro
+      // Resetar
       setNovoMembro({ nome: '', cargo: '', fotoUrl: '', file: null });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -147,14 +134,6 @@ export default function EditarSobreNos() {
 
   const removeMembro = () => {
     if (membroParaRemover !== null) {
-      const membroRemovido = dados.equipe[membroParaRemover];
-      
-      // Revoga URL blob se for uma URL local
-      if (membroRemovido.fotoUrl && membroRemovido.fotoUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(membroRemovido.fotoUrl);
-        blobUrlsRef.current.delete(membroRemovido.fotoUrl);
-      }
-
       const novaEquipe = dados.equipe.filter((_, i) => i !== membroParaRemover);
       setDados({ ...dados, equipe: novaEquipe });
       setOpenDeleteDialog(false);
@@ -163,7 +142,7 @@ export default function EditarSobreNos() {
   };
 
   const handleSave = async () => {
-    if (isSaving) return;
+    if (isSaving) return; // Previne múltiplos cliques
     
     setIsSaving(true);
     setUploadProgress({});
@@ -180,10 +159,17 @@ export default function EditarSobreNos() {
               const form = new FormData();
               form.append("file", membro.file);
 
+              // Upload com timeout para mobile
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
               const upload = await fetch("/api/upload", {
                 method: "POST",
                 body: form,
+                signal: controller.signal,
               });
+
+              clearTimeout(timeoutId);
 
               if (!upload.ok) {
                 const errorText = await upload.text();
@@ -193,12 +179,6 @@ export default function EditarSobreNos() {
               const uploaded = await upload.json();
               setUploadProgress(prev => ({ ...prev, [index]: 100 }));
               
-              // Revoga URL blob local se existir
-              if (membro.fotoUrl && membro.fotoUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(membro.fotoUrl);
-                blobUrlsRef.current.delete(membro.fotoUrl);
-              }
-              
               return { 
                 ...membro, 
                 fotoUrl: uploaded.url, 
@@ -207,6 +187,7 @@ export default function EditarSobreNos() {
               };
             } catch (uploadError) {
               console.error('Erro no upload da foto:', uploadError);
+              // Se falhar, mantém o membro mas mostra alerta
               alert(`Erro ao enviar foto de ${membro.nome}. O membro será salvo sem foto.`);
               return { 
                 ...membro, 
@@ -274,148 +255,45 @@ export default function EditarSobreNos() {
 
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      alert("Erro ao salvar! " + error.message);
+      
+      // Mensagens amigáveis para mobile
+      let errorMessage = "Erro ao salvar!";
+      
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        errorMessage = "Tempo esgotado. Verifique sua conexão com a internet.";
+      } else if (error.message.includes('network')) {
+        errorMessage = "Problema de conexão. Verifique sua internet.";
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Limpa todas as URLs blob quando o componente desmonta
+  // Limpa URLs de preview quando desmontar
   useEffect(() => {
     return () => {
-      blobUrlsRef.current.forEach(url => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
+      // Limpa todos os object URLs
+      if (novoMembro.fotoUrl && novoMembro.fotoUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(novoMembro.fotoUrl);
+      }
+      dados.equipe.forEach(membro => {
+        if (membro.fotoUrl && membro.fotoUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(membro.fotoUrl);
         }
       });
-      blobUrlsRef.current.clear();
     };
-  }, []);
-
-  // Função para renderizar avatar com tratamento de erro
-  const renderAvatar = (membro, index) => {
-    const handleImageError = (e) => {
-      // Se a imagem falhar ao carregar, remove o src
-      e.target.style.display = 'none';
-    };
-
-    if (membro.fotoUrl && membro.fotoUrl.startsWith('blob:')) {
-      // Para URLs blob, usa uma abordagem mais simples
-      return (
-        <Box sx={{ 
-          width: 60, 
-          height: 60, 
-          borderRadius: '50%',
-          bgcolor: 'grey.200',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          flexShrink: 0
-        }}>
-          {membro.fotoUrl && (
-            <img 
-              src={membro.fotoUrl} 
-              alt={membro.nome}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }}
-              onError={handleImageError}
-            />
-          )}
-          {!membro.fotoUrl && <PersonIcon sx={{ color: 'grey.500' }} />}
-        </Box>
-      );
-    } else if (membro.fotoUrl) {
-      // Para URLs remotas
-      return (
-        <Box sx={{ 
-          width: 60, 
-          height: 60, 
-          borderRadius: '50%',
-          bgcolor: 'grey.200',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          flexShrink: 0
-        }}>
-          <img 
-            src={membro.fotoUrl} 
-            alt={membro.nome}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover'
-            }}
-            onError={handleImageError}
-          />
-        </Box>
-      );
-    } else {
-      // Sem foto
-      return (
-        <Box sx={{ 
-          width: 60, 
-          height: 60, 
-          borderRadius: '50%',
-          bgcolor: 'grey.200',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0
-        }}>
-          <PersonIcon sx={{ color: 'grey.500' }} />
-        </Box>
-      );
-    }
-  };
-
-  // Função para renderizar preview do novo membro
-  const renderPreviewAvatar = () => {
-    if (!novoMembro.fotoUrl) return null;
-
-    const handleImageError = (e) => {
-      e.target.style.display = 'none';
-    };
-
-    return (
-      <Box sx={{ 
-        width: 50, 
-        height: 50, 
-        borderRadius: '50%',
-        bgcolor: 'grey.200',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        flexShrink: 0
-      }}>
-        <img 
-          src={novoMembro.fotoUrl} 
-          alt="Preview"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover'
-          }}
-          onError={handleImageError}
-        />
-      </Box>
-    );
-  };
+  }, [novoMembro.fotoUrl, dados.equipe]);
 
   return (
-    <Container maxWidth="lg" sx={{ pb: 4, pt: 2 }}>
-      <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
+    <Container maxWidth="lg" sx={{ pb: 4 }}>
+      <Typography variant="h4" gutterBottom sx={{ mt: 2 }}>
         Editar Página "Sobre Nós"
       </Typography>
 
-      {/* Seção Sobre Nós */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Título</Typography>
+        <Typography variant="h6">Título</Typography>
         <TextField 
           fullWidth 
           value={dados.titulo} 
@@ -424,7 +302,7 @@ export default function EditarSobreNos() {
           size="small"
         />
 
-        <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Descrição</Typography>
+        <Typography variant="h6" sx={{ mt: 3 }}>Descrição</Typography>
         <TextField 
           fullWidth 
           multiline 
@@ -435,7 +313,7 @@ export default function EditarSobreNos() {
           size="small"
         />
 
-        <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Missão</Typography>
+        <Typography variant="h6" sx={{ mt: 3 }}>Missão</Typography>
         <TextField 
           fullWidth 
           multiline 
@@ -447,277 +325,176 @@ export default function EditarSobreNos() {
         />
       </Paper>
 
-      {/* Seção Equipe */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
-          Equipe ({dados.equipe.length} membro{dados.equipe.length !== 1 ? 's' : ''})
-        </Typography>
+        <Typography variant="h6" gutterBottom>Equipe</Typography>
 
-        {/* Lista de Membros */}
-        {dados.equipe.length > 0 ? (
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            {dados.equipe.map((membro, index) => (
-              <Grid item xs={12} sm={6} md={4} key={membro.id}>
-                <Card sx={{ 
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: '120px'
-                }}>
-                  <CardContent sx={{ 
-                    p: 2, 
-                    flexGrow: 1,
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'flex-start',
-                      flexGrow: 1
-                    }}>
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'flex-start', 
-                        gap: 2, 
-                        flex: 1,
-                        minWidth: 0
-                      }}>
-                        {renderAvatar(membro, index)}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {dados.equipe.map((membro, index) => (
+            <Grid item xs={12} sm={6} md={4} key={membro.id}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                      {membro.fotoUrl ? (
+                        <img 
+                          src={membro.fotoUrl} 
+                          alt={membro.nome} 
+                          style={{ 
+                            width: 50, 
+                            height: 50, 
+                            borderRadius: '50%',
+                            objectFit: 'cover'
+                          }} 
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      ) : (
                         <Box sx={{ 
-                          flex: 1, 
-                          minWidth: 0,
+                          width: 50, 
+                          height: 50, 
+                          borderRadius: '50%',
+                          bgcolor: 'grey.200',
                           display: 'flex',
-                          flexDirection: 'column'
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}>
-                          <Typography 
-                            variant="subtitle1" 
-                            noWrap 
-                            sx={{ 
-                              fontWeight: 'bold',
-                              mb: 0.5
-                            }}
-                          >
-                            {membro.nome}
+                          <Typography variant="caption" color="text.secondary">
+                            Sem foto
                           </Typography>
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
-                            sx={{
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              mb: 1
-                            }}
-                          >
-                            {membro.cargo}
-                          </Typography>
-                          {uploadProgress[index] !== undefined && uploadProgress[index] < 100 && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 'auto' }}>
-                              <CircularProgress size={16} />
-                              <Typography variant="caption" color="text.secondary">
-                                {uploadProgress[index]}%
-                              </Typography>
-                            </Box>
-                          )}
                         </Box>
+                      )}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle1" noWrap>
+                          {membro.nome}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" noWrap>
+                          {membro.cargo}
+                        </Typography>
+                        {uploadProgress[index] !== undefined && uploadProgress[index] < 100 && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                            <CircularProgress size={16} />
+                            <Typography variant="caption">
+                              {uploadProgress[index]}%
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
-                      <IconButton 
-                        color="error" 
-                        onClick={() => confirmRemoveMembro(index)}
-                        aria-label="remover membro"
-                        size="small"
-                        sx={{ 
-                          ml: 1,
-                          flexShrink: 0,
-                          alignSelf: 'flex-start'
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
                     </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          <Box sx={{ 
-            textAlign: 'center', 
-            py: 4, 
-            mb: 2,
-            bgcolor: 'grey.50',
-            borderRadius: 1
-          }}>
-            <PersonIcon sx={{ fontSize: 48, color: 'grey.400', mb: 2 }} />
-            <Typography color="text.secondary">
-              Nenhum membro na equipe ainda
-            </Typography>
-          </Box>
-        )}
+                    <IconButton 
+                      color="error" 
+                      onClick={() => confirmRemoveMembro(index)}
+                      aria-label="remover membro"
+                      size="small"
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
 
-        {/* Formulário para Adicionar Membro */}
-        <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-          Adicionar Novo Membro
-        </Typography>
-        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={5}>
-              <TextField 
-                fullWidth 
-                label="Nome" 
-                value={novoMembro.nome} 
-                onChange={handleMembroChange('nome')} 
-                size="small"
-                required
-                margin="none"
-              />
-            </Grid>
-            <Grid item xs={12} sm={5}>
-              <TextField 
-                fullWidth 
-                label="Cargo" 
-                value={novoMembro.cargo} 
-                onChange={handleMembroChange('cargo')} 
-                size="small"
-                required
-                margin="none"
-              />
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <Button 
-                variant="outlined" 
-                component="label" 
-                fullWidth 
-                size="small"
-                startIcon={<CloudUploadIcon />}
-                sx={{ height: '40px' }}
-              >
-                Foto
-                <input 
-                  type="file" 
-                  hidden 
-                  onChange={handleMembroFoto}
-                  accept="image/*"
-                  ref={fileInputRef}
-                />
-              </Button>
-            </Grid>
+        <Typography variant="subtitle1" gutterBottom>Adicionar Membro</Typography>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={4}>
+            <TextField 
+              fullWidth 
+              label="Nome" 
+              value={novoMembro.nome} 
+              onChange={handleMembroChange('nome')} 
+              size="small" 
+              required
+              margin="none"
+            />
           </Grid>
-          
-          {/* Preview da foto selecionada */}
-          {novoMembro.fotoUrl && (
-            <Box sx={{ 
-              mt: 2, 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 2,
-              p: 1,
-              bgcolor: 'white',
-              borderRadius: 1,
-              border: '1px solid',
-              borderColor: 'grey.300'
-            }}>
-              {renderPreviewAvatar()}
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" display="block" noWrap>
-                  {novoMembro.file?.name || 'Imagem selecionada'}
-                </Typography>
+          <Grid item xs={12} sm={4}>
+            <TextField 
+              fullWidth 
+              label="Cargo" 
+              value={novoMembro.cargo} 
+              onChange={handleMembroChange('cargo')} 
+              size="small" 
+              required
+              margin="none"
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Button 
+              variant="outlined" 
+              component="label" 
+              fullWidth 
+              size="small"
+              startIcon={<CloudUploadIcon />}
+            >
+              Foto
+              <input 
+                type="file" 
+                hidden 
+                onChange={handleMembroFoto}
+                accept="image/*"
+                ref={fileInputRef}
+              />
+            </Button>
+            {novoMembro.fotoUrl && (
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <img 
+                  src={novoMembro.fotoUrl} 
+                  alt="preview" 
+                  style={{ 
+                    width: 50, 
+                    height: 50, 
+                    borderRadius: '50%',
+                    objectFit: 'cover'
+                  }} 
+                />
                 <Typography variant="caption" color="text.secondary">
-                  {(novoMembro.file?.size / (1024 * 1024)).toFixed(2)} MB
+                  {novoMembro.file?.name?.substring(0, 20) || 'Preview'}
                 </Typography>
               </Box>
-              <Button 
-                size="small" 
-                color="error"
-                onClick={() => {
-                  // Revoga URL blob antes de remover
-                  if (novoMembro.fotoUrl && novoMembro.fotoUrl.startsWith('blob:')) {
-                    URL.revokeObjectURL(novoMembro.fotoUrl);
-                    blobUrlsRef.current.delete(novoMembro.fotoUrl);
-                  }
-                  setNovoMembro(prev => ({ ...prev, fotoUrl: '', file: null }));
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-              >
-                Remover
-              </Button>
-            </Box>
-          )}
-          
-          <Button 
-            onClick={addMembro} 
-            startIcon={<AddIcon />} 
-            sx={{ mt: 2 }}
-            disabled={!novoMembro.nome.trim() || !novoMembro.cargo.trim()}
-            variant="contained"
-            size="medium"
-            fullWidth
-          >
-            Adicionar Membro
-          </Button>
-        </Paper>
-        
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-          Dica: Escolha fotos da galeria. Tamanho máximo: 15MB.
-        </Typography>
+            )}
+          </Grid>
+        </Grid>
+
+        <Button 
+          onClick={addMembro} 
+          startIcon={<AddIcon />} 
+          sx={{ mt: 2 }}
+          disabled={!novoMembro.nome || !novoMembro.cargo}
+          variant="contained"
+          size="small"
+        >
+          Adicionar Membro
+        </Button>
       </Paper>
 
-      {/* Botão Salvar */}
       {algoMudou && (
-        <Box sx={{ 
-          position: { xs: 'fixed', sm: 'static' }, 
-          bottom: { xs: 0, sm: 'auto' },
-          left: 0,
-          right: 0,
-          bgcolor: 'background.paper', 
-          py: 2, 
-          px: 2,
-          borderTop: { xs: '1px solid', sm: 'none' },
-          borderColor: 'divider',
-          zIndex: 1000,
-          boxShadow: { xs: 3, sm: 0 }
-        }}>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: { xs: 'center', sm: 'flex-end' },
-            maxWidth: 'lg',
-            mx: 'auto'
-          }}>
-            <Button 
-              variant="contained" 
-              startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />} 
-              onClick={handleSave}
-              size="large"
-              disabled={isSaving}
-              sx={{ 
-                minWidth: { xs: '100%', sm: 200 },
-                py: { xs: 1.5, sm: 1 }
-              }}
-            >
-              {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
-          </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 4 }}>
+          <Button 
+            variant="contained" 
+            startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />} 
+            onClick={handleSave}
+            size="large"
+            disabled={isSaving}
+            sx={{ minWidth: 200 }}
+          >
+            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+          </Button>
         </Box>
       )}
 
-      {/* Espaço extra no mobile para o botão fixo não cobrir conteúdo */}
-      {algoMudou && <Box sx={{ height: { xs: '80px', sm: 0 } }} />}
-
-      {/* Notificação de Sucesso */}
       <Snackbar 
         open={openSnackbar} 
         autoHideDuration={3000} 
         onClose={() => setOpenSnackbar(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity="success" onClose={() => setOpenSnackbar(false)} sx={{ width: '100%' }}>
+        <Alert severity="success" onClose={() => setOpenSnackbar(false)}>
           Alterações salvas com sucesso!
         </Alert>
       </Snackbar>
 
-      {/* Diálogo de Confirmação para Remover */}
       <Dialog
         open={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}
@@ -725,15 +502,15 @@ export default function EditarSobreNos() {
         <DialogTitle>Remover Membro</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Tem certeza que deseja remover este membro da equipe?
+            Tem certeza que deseja remover este membro? 
           </DialogContentText>
-          <DialogContentText sx={{ mt: 1 }}>
+          <DialogContentText>
             Esta ação não pode ser desfeita.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDeleteDialog(false)}>Cancelar</Button>
-          <Button onClick={removeMembro} color="error" variant="contained">
+          <Button onClick={removeMembro} color="error" autoFocus>
             Remover
           </Button>
         </DialogActions>
