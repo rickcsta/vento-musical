@@ -31,16 +31,8 @@ export default function ClientLayout({ children }) {
     <Providers>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-
-        {/* Header e Footer sempre client-only */}
         <Header />
-        <main
-          style={{
-            minHeight: '70vh',
-            backgroundColor: '#F5F9F5',
-            paddingTop: '20px',
-          }}
-        >
+        <main style={{ minHeight: '70vh', backgroundColor: '#F5F9F5', paddingTop: '20px' }}>
           {children}
         </main>
         <Footer />
