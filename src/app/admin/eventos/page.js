@@ -159,19 +159,11 @@ export default function GerenciarEventos() {
       
       if (novoEvento.data_evento) {
         if (novoEvento.hora_evento) {
-          // Se tiver hora, combina data + hora
-          const [year, month, day] = novoEvento.data_evento.split('-');
-          const [hours, minutes] = novoEvento.hora_evento.split(':');
-          
-          // Cria a data/hora no fuso horário local
-          const dataComHora = new Date(year, month - 1, day, hours, minutes);
-          
-          // Converte para string ISO (o backend provavelmente espera isso)
+          // Enviar no formato que o backend espera
           datahoraEvento = `${novoEvento.data_evento}T${novoEvento.hora_evento}:00`;
         } else {
-          // Se só tiver data, usar meia-noite
-          const dataComHora = new Date(novoEvento.data_evento + 'T00:00:00');
-          datahoraEvento = `${novoEvento.data_evento}T${novoEvento.hora_evento}:00`;
+          // Se não tiver hora, usar 00:00
+          datahoraEvento = `${novoEvento.data_evento}T00:00:00`;
         }
       }
 
@@ -258,19 +250,44 @@ export default function GerenciarEventos() {
     setEventoParaExcluir(null);
   };
 
-  // Função para formatar data e hora completa
+  // Função para formatar data e hora completa (+3 horas)
   const formatarDataHora = (datahoraString) => {
     if (!datahoraString) return 'Sem data/hora definida';
     
     try {
+      // Se é string do PostgreSQL "2025-12-10 23:30:00"
+      if (typeof datahoraString === 'string' && datahoraString.includes(' ')) {
+        const [dataParte, horaParte] = datahoraString.split(' ');
+        const [ano, mes, dia] = dataParte.split('-');
+        const [hora, minuto] = horaParte.split(':');
+        
+        // Ajustar hora (+3h)
+        const horasCorrigidas = (parseInt(hora) + 3) % 24;
+        const data = new Date(ano, mes - 1, dia, horasCorrigidas, minuto);
+        
+        return data.toLocaleDateString('pt-BR', {
+          weekday: 'long',
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+      }
+      
       const data = new Date(datahoraString);
-      return data.toLocaleDateString('pt-BR', {
+      // Adiciona 3 horas para compensar UTC → BRT
+      const dataCorrigida = new Date(data.getTime() + (3 * 60 * 60 * 1000));
+      
+      return dataCorrigida.toLocaleDateString('pt-BR', {
         weekday: 'long',
         day: '2-digit',
         month: 'long',
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: false
       });
     } catch {
       return datahoraString;
@@ -282,6 +299,14 @@ export default function GerenciarEventos() {
     if (!datahoraString) return '';
     
     try {
+      // Se é string do PostgreSQL "2025-12-10 23:30:00"
+      if (typeof datahoraString === 'string' && datahoraString.includes(' ')) {
+        const [dataParte] = datahoraString.split(' ');
+        const [ano, mes, dia] = dataParte.split('-');
+        const data = new Date(ano, mes - 1, dia);
+        return data.toLocaleDateString('pt-BR');
+      }
+      
       const data = new Date(datahoraString);
       return data.toLocaleDateString('pt-BR');
     } catch {
@@ -289,16 +314,27 @@ export default function GerenciarEventos() {
     }
   };
 
-  // Função para formatar hora
+  // Função para formatar hora (+3 horas para compensar UTC → BRT)
   const formatarHora = (datahoraString) => {
     if (!datahoraString) return '';
     
     try {
+      // Se é string do PostgreSQL "2025-12-10 23:30:00"
+      if (typeof datahoraString === 'string' && datahoraString.includes(' ')) {
+        const [, horaParte] = datahoraString.split(' ');
+        const [hora, minuto] = horaParte.split(':');
+        
+        // ADICIONA 3 HORAS para compensar UTC → BRT
+        const horasCorrigidas = (parseInt(hora) + 3) % 24;
+        return `${String(horasCorrigidas).padStart(2, '0')}:${minuto}`;
+      }
+      
       const data = new Date(datahoraString);
-      return data.toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // ADICIONA 3 HORAS para compensar
+      const horasCorrigidas = (data.getHours() + 3) % 24;
+      const minutos = String(data.getMinutes()).padStart(2, '0');
+      
+      return `${String(horasCorrigidas).padStart(2, '0')}:${minutos}`;
     } catch {
       return datahoraString;
     }

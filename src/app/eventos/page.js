@@ -152,50 +152,90 @@ export default function EventosPage() {
     setAbaAtiva(newValue);
   };
 
-  // Formatar data completa com hora
+  // Formatar data curta
+  const formatarDataCurta = (datahoraString) => {
+    if (!datahoraString) return '';
+    
+    try {
+      // Se é string do PostgreSQL "2025-12-10 23:30:00"
+      if (typeof datahoraString === 'string' && datahoraString.includes(' ')) {
+        const [dataParte] = datahoraString.split(' ');
+        const [ano, mes, dia] = dataParte.split('-');
+        const data = new Date(ano, mes - 1, dia);
+        return data.toLocaleDateString('pt-BR');
+      }
+      
+      const data = new Date(datahoraString);
+      return data.toLocaleDateString('pt-BR');
+    } catch {
+      return datahoraString;
+    }
+  };
+
+  // Formatar hora (+3 horas para compensar UTC → BRT)
+  const formatarHora = (datahoraString) => {
+    if (!datahoraString) return '';
+    
+    try {
+      // Se é string do PostgreSQL "2025-12-10 23:30:00"
+      if (typeof datahoraString === 'string' && datahoraString.includes(' ')) {
+        const [, horaParte] = datahoraString.split(' ');
+        const [hora, minuto] = horaParte.split(':');
+        
+        // ADICIONA 3 HORAS para compensar UTC → BRT
+        const horasCorrigidas = (parseInt(hora) + 3) % 24;
+        return `${String(horasCorrigidas).padStart(2, '0')}:${minuto}`;
+      }
+      
+      const data = new Date(datahoraString);
+      // ADICIONA 3 HORAS para compensar
+      const horasCorrigidas = (data.getHours() + 3) % 24;
+      const minutos = String(data.getMinutes()).padStart(2, '0');
+      
+      return `${String(horasCorrigidas).padStart(2, '0')}:${minutos}`;
+    } catch {
+      return datahoraString;
+    }
+  };
+
+  // Formatar data e hora completa (+3 horas)
   const formatarDataHora = (datahoraString) => {
     if (!datahoraString) return 'Data e hora a confirmar';
     
     try {
+      // Se é string do PostgreSQL "2025-12-10 23:30:00"
+      if (typeof datahoraString === 'string' && datahoraString.includes(' ')) {
+        const [dataParte, horaParte] = datahoraString.split(' ');
+        const [ano, mes, dia] = dataParte.split('-');
+        const [hora, minuto] = horaParte.split(':');
+        
+        // Ajustar hora (+3h)
+        const horasCorrigidas = (parseInt(hora) + 3) % 24;
+        const data = new Date(ano, mes - 1, dia, horasCorrigidas, minuto);
+        
+        return data.toLocaleDateString('pt-BR', {
+          weekday: 'long',
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+      }
+      
       const data = new Date(datahoraString);
-      return data.toLocaleDateString('pt-BR', {
+      // Adiciona 3 horas para compensar
+      const dataCorrigida = new Date(data.getTime() + (3 * 60 * 60 * 1000));
+      
+      return dataCorrigida.toLocaleDateString('pt-BR', {
         weekday: 'long',
         day: '2-digit',
         month: 'long',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: 'America/Sao_Paulo'
-      });
-    } catch {
-      return datahoraString;
-    }
-  };
-
-  // Formatar data curta
-  const formatarDataCurta = (datahoraString) => {
-    if (!datahoraString) return '';
-    
-    try {
-      const data = new Date(datahoraString);
-      return data.toLocaleDateString('pt-BR', {
-        timeZone: 'America/Sao_Paulo'
-      });
-    } catch {
-      return datahoraString;
-    }
-  };
-
-  // Formatar hora
-  const formatarHora = (datahoraString) => {
-    if (!datahoraString) return '';
-    
-    try {
-      const data = new Date(datahoraString);
-      return data.toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'America/Sao_Paulo'
+        hour12: false
       });
     } catch {
       return datahoraString;
@@ -554,6 +594,18 @@ export default function EventosPage() {
                           </Typography>
                           <Typography variant="body1">
                             {formatarHora(eventoExpandido.datahora_evento)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <CalendarTodayIcon sx={{ mr: 2, color: 'primary.main' }} />
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Data e Hora Completa
+                          </Typography>
+                          <Typography variant="body1">
+                            {formatarDataHora(eventoExpandido.datahora_evento)}
                           </Typography>
                         </Box>
                       </Box>
