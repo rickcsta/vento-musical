@@ -13,6 +13,7 @@ import EventIcon from '@mui/icons-material/Event';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import DescriptionIcon from '@mui/icons-material/Description';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 export default function GerenciarEventos() {
   const [eventos, setEventos] = useState([]);
@@ -22,6 +23,7 @@ export default function GerenciarEventos() {
     titulo: '',
     descricao: '',
     data_evento: '',
+    hora_evento: '',
     local: '',
     link_drive: ''
   });
@@ -89,10 +91,24 @@ export default function GerenciarEventos() {
   const handleOpenDialog = (evento = null) => {
     if (evento) {
       setEditingEvento(evento);
+      
+      // Separar data e hora se existir uma datahora_evento
+      let dataPart = '';
+      let horaPart = '';
+      
+      if (evento.datahora_evento) {
+        const datahora = new Date(evento.datahora_evento);
+        dataPart = datahora.toISOString().split('T')[0];
+        horaPart = datahora.toTimeString().slice(0, 5); // Formato HH:MM
+      } else if (evento.data_evento) {
+        dataPart = evento.data_evento.split('T')[0];
+      }
+      
       setNovoEvento({
         titulo: evento.titulo || '',
         descricao: evento.descricao || '',
-        data_evento: evento.data_evento?.split('T')[0] || '',
+        data_evento: dataPart || '',
+        hora_evento: horaPart || '',
         local: evento.local || '',
         link_drive: evento.link_drive || ''
       });
@@ -102,6 +118,7 @@ export default function GerenciarEventos() {
         titulo: '', 
         descricao: '', 
         data_evento: '', 
+        hora_evento: '',
         local: '',
         link_drive: ''
       });
@@ -112,7 +129,14 @@ export default function GerenciarEventos() {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingEvento(null);
-    setNovoEvento({ titulo: '', descricao: '', data_evento: '', local: '', link_drive: '' });
+    setNovoEvento({ 
+      titulo: '', 
+      descricao: '', 
+      data_evento: '', 
+      hora_evento: '',
+      local: '', 
+      link_drive: '' 
+    });
   };
 
   const handleChange = field => event => {
@@ -130,10 +154,31 @@ export default function GerenciarEventos() {
         return;
       }
 
+      // Juntar data e hora em um único campo para o backend
+      let datahoraEvento = null;
+      
+      if (novoEvento.data_evento) {
+        if (novoEvento.hora_evento) {
+          // Se tiver hora, combina data + hora
+          const [year, month, day] = novoEvento.data_evento.split('-');
+          const [hours, minutes] = novoEvento.hora_evento.split(':');
+          
+          // Cria a data/hora no fuso horário local
+          const dataComHora = new Date(year, month - 1, day, hours, minutes);
+          
+          // Converte para string ISO (o backend provavelmente espera isso)
+          datahoraEvento = `${novoEvento.data_evento}T${novoEvento.hora_evento}:00`;
+        } else {
+          // Se só tiver data, usar meia-noite
+          const dataComHora = new Date(novoEvento.data_evento + 'T00:00:00');
+          datahoraEvento = `${novoEvento.data_evento}T${novoEvento.hora_evento}:00`;
+        }
+      }
+
       const eventoData = {
         titulo: novoEvento.titulo.trim(),
         descricao: novoEvento.descricao.trim(),
-        data_evento: novoEvento.data_evento || null,
+        datahora_evento: datahoraEvento,
         local: novoEvento.local.trim() || null,
         link_drive: novoEvento.link_drive.trim() 
       };
@@ -213,32 +258,49 @@ export default function GerenciarEventos() {
     setEventoParaExcluir(null);
   };
 
-  // Função para formatar data
-  const formatarData = (dataString) => {
-    if (!dataString) return 'Sem data definida';
+  // Função para formatar data e hora completa
+  const formatarDataHora = (datahoraString) => {
+    if (!datahoraString) return 'Sem data/hora definida';
     
     try {
-      const data = new Date(dataString);
+      const data = new Date(datahoraString);
       return data.toLocaleDateString('pt-BR', {
         weekday: 'long',
         day: '2-digit',
         month: 'long',
-        year: 'numeric'
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     } catch {
-      return dataString;
+      return datahoraString;
     }
   };
 
   // Função para formatar data curta
-  const formatarDataCurta = (dataString) => {
-    if (!dataString) return '';
+  const formatarDataCurta = (datahoraString) => {
+    if (!datahoraString) return '';
     
     try {
-      const data = new Date(dataString);
+      const data = new Date(datahoraString);
       return data.toLocaleDateString('pt-BR');
     } catch {
-      return dataString;
+      return datahoraString;
+    }
+  };
+
+  // Função para formatar hora
+  const formatarHora = (datahoraString) => {
+    if (!datahoraString) return '';
+    
+    try {
+      const data = new Date(datahoraString);
+      return data.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return datahoraString;
     }
   };
 
@@ -307,13 +369,22 @@ export default function GerenciarEventos() {
                       )}
                       
                       <Box sx={{ mb: 2 }}>
-                        {evento.data_evento && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                            <CalendarTodayIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                            <Typography variant="body2">
-                              {formatarData(evento.data_evento)}
-                            </Typography>
-                          </Box>
+                        {evento.datahora_evento && (
+                          <>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <CalendarTodayIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                              <Typography variant="body2">
+                                {formatarDataHora(evento.datahora_evento)}
+                              </Typography>
+                            </Box>
+                            
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <AccessTimeIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                              <Typography variant="body2">
+                                {formatarHora(evento.datahora_evento)}
+                              </Typography>
+                            </Box>
+                          </>
                         )}
                         
                         {evento.local && (
@@ -401,16 +472,28 @@ export default function GerenciarEventos() {
             helperText="Descrição detalhada do evento (opcional)"
           />
           
-          <TextField 
-            fullWidth 
-            type="date" 
-            label="Data do evento"
-            value={novoEvento.data_evento} 
-            onChange={handleChange("data_evento")} 
-            sx={{ mt: 2 }}
-            InputLabelProps={{ shrink: true }}
-            helperText="Data em que o evento ocorreu/ocorrerá"
-          />
+          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+            <TextField 
+              fullWidth 
+              type="date" 
+              label="Data do evento"
+              value={novoEvento.data_evento} 
+              onChange={handleChange("data_evento")} 
+              InputLabelProps={{ shrink: true }}
+              helperText="Data do evento"
+            />
+
+            <TextField 
+              fullWidth 
+              type="time" 
+              label="Hora do evento"
+              value={novoEvento.hora_evento} 
+              onChange={handleChange("hora_evento")} 
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ step: 300 }} // Incrementos de 5 minutos
+              helperText="Hora (opcional)"
+            />
+          </Box>
 
           <TextField 
             fullWidth 
@@ -423,7 +506,7 @@ export default function GerenciarEventos() {
           />
 
           <TextField
-          fullWidth 
+            fullWidth 
             label="Link da pasta do Google Drive"
             value={novoEvento.link_drive} 
             onChange={handleChange("link_drive")} 
@@ -435,6 +518,14 @@ export default function GerenciarEventos() {
           <Typography variant="caption" color="text.secondary" sx={{ mt: 3, display: 'block' }}>
             * Campos obrigatórios
           </Typography>
+          
+          {novoEvento.data_evento && novoEvento.hora_evento && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Evento agendado para: {formatarDataHora(
+                new Date(`${novoEvento.data_evento}T${novoEvento.hora_evento}`).toISOString()
+              )}
+            </Alert>
+          )}
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -487,9 +578,9 @@ export default function GerenciarEventos() {
                 <Typography variant="body2" color="text.secondary">
                   <strong>Detalhes do evento:</strong>
                 </Typography>
-                {eventoParaExcluir.data_evento && (
+                {eventoParaExcluir.datahora_evento && (
                   <Typography variant="body2">
-                    📅 {formatarData(eventoParaExcluir.data_evento)}
+                    📅 {formatarDataHora(eventoParaExcluir.datahora_evento)}
                   </Typography>
                 )}
                 {eventoParaExcluir.local && (

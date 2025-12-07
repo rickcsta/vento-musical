@@ -30,6 +30,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EventIcon from '@mui/icons-material/Event';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 export default function GaleriaFotosPage() {
   const [fotos, setFotos] = useState([]);
@@ -121,7 +122,7 @@ export default function GaleriaFotosPage() {
           id: eventoId,
           titulo: eventoInfo?.titulo || 'Evento Desconhecido',
           descricao: eventoInfo?.descricao,
-          data: eventoInfo?.data_evento,
+          datahora: eventoInfo?.datahora_evento,  // Alterado de data para datahora
           local: eventoInfo?.local,
           link_drive: eventoInfo?.link_drive
         } : {
@@ -145,9 +146,9 @@ export default function GaleriaFotosPage() {
       if (eventoA.id === 'sem-evento') return 1;
       if (eventoB.id === 'sem-evento') return -1;
       
-      // Ordenar por data do evento
-      const dataA = eventoA.data;
-      const dataB = eventoB.data;
+      // Ordenar por data do evento (alterado para datahora)
+      const dataA = eventoA.datahora;
+      const dataB = eventoB.datahora;
       
       if (!dataA) return 1;
       if (!dataB) return -1;
@@ -166,32 +167,53 @@ export default function GaleriaFotosPage() {
     }));
   };
 
-  // Formatar data
-  const formatarData = (dataString) => {
-    if (!dataString) return '';
+  // Formatar data e hora
+  const formatarDataHora = (datahoraString) => {
+    if (!datahoraString) return '';
     
     try {
-      const data = new Date(dataString);
+      const data = new Date(datahoraString);
       return data.toLocaleDateString('pt-BR', {
         weekday: 'long',
         day: '2-digit',
         month: 'long',
-        year: 'numeric'
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Sao_Paulo'
       });
     } catch {
-      return dataString;
+      return datahoraString;
     }
   };
 
   // Formatar data curta
-  const formatarDataCurta = (dataString) => {
-    if (!dataString) return '';
+  const formatarDataCurta = (datahoraString) => {
+    if (!datahoraString) return '';
     
     try {
-      const data = new Date(dataString);
-      return data.toLocaleDateString('pt-BR');
+      const data = new Date(datahoraString);
+      return data.toLocaleDateString('pt-BR', {
+        timeZone: 'America/Sao_Paulo'
+      });
     } catch {
-      return dataString;
+      return datahoraString;
+    }
+  };
+
+  // Formatar hora
+  const formatarHora = (datahoraString) => {
+    if (!datahoraString) return '';
+    
+    try {
+      const data = new Date(datahoraString);
+      return data.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Sao_Paulo'
+      });
+    } catch {
+      return datahoraString;
     }
   };
 
@@ -302,11 +324,17 @@ export default function GaleriaFotosPage() {
                         {evento.titulo}
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
-                        {evento.data && (
-                          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                            <CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                            {formatarDataCurta(evento.data)}
-                          </Typography>
+                        {evento.datahora && (
+                          <>
+                            <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                              <CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                              {formatarDataCurta(evento.datahora)}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                              <AccessTimeIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                              {formatarHora(evento.datahora)}
+                            </Typography>
+                          </>
                         )}
                         {evento.local && (
                           <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
@@ -403,45 +431,44 @@ export default function GaleriaFotosPage() {
                   </Grid>
 
                   {isOpen && evento.link_drive && (
-  <Box sx={{ mb: 3 }}>
-    <Paper
-      elevation={3}
-      sx={{
-        marginTop: 5,
-        p: 2.5,
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-        borderRadius: 3,
-        transition: "0.3s",
-        border: "1px solid",
-        borderColor: "primary.main",
-        cursor: "pointer",
-        "&:hover": {
-          transform: "translateY(-3px)",
-          boxShadow: 6,
-          backgroundColor: "primary.main",
-          color: "white",
-        },
-      }}
-      component="a"
-      href={evento.link_drive}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <PhotoAlbumIcon sx={{ fontSize: 40 }} />
-      <Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-          Ver pasta completa no Google Drive
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.8 }}>
-          Clique para abrir no navegador
-        </Typography>
-      </Box>
-    </Paper>
-  </Box>
-
-)}
+                    <Box sx={{ mb: 3 }}>
+                      <Paper
+                        elevation={3}
+                        sx={{
+                          marginTop: 5,
+                          p: 2.5,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          borderRadius: 3,
+                          transition: "0.3s",
+                          border: "1px solid",
+                          borderColor: "primary.main",
+                          cursor: "pointer",
+                          "&:hover": {
+                            transform: "translateY(-3px)",
+                            boxShadow: 6,
+                            backgroundColor: "primary.main",
+                            color: "white",
+                          },
+                        }}
+                        component="a"
+                        href={evento.link_drive}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <PhotoAlbumIcon sx={{ fontSize: 40 }} />
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
+                            Ver pasta completa no Google Drive
+                          </Typography>
+                          <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                            Clique para abrir no navegador
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    </Box>
+                  )}
                 </AccordionDetails>
               </Accordion>
             );
@@ -503,11 +530,17 @@ export default function GaleriaFotosPage() {
                       {fotoExpandida.evento.titulo}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 1 }}>
-                      {fotoExpandida.evento.data && (
-                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                          <CalendarTodayIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                          {formatarData(fotoExpandida.evento.data)}
-                        </Typography>
+                      {fotoExpandida.evento.datahora && (
+                        <>
+                          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                            <CalendarTodayIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                            {formatarDataCurta(fotoExpandida.evento.datahora)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                            <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                            {formatarHora(fotoExpandida.evento.datahora)}
+                          </Typography>
+                        </>
                       )}
                       {fotoExpandida.evento.local && (
                         <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
@@ -521,6 +554,11 @@ export default function GaleriaFotosPage() {
                         {fotoExpandida.evento.descricao}
                       </Typography>
                     )}
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      {fotoExpandida.evento.datahora && 
+                        `Evento realizado em: ${formatarDataHora(fotoExpandida.evento.datahora)}`
+                      }
+                    </Typography>
                   </Box>
                 )}
                 
@@ -532,7 +570,7 @@ export default function GaleriaFotosPage() {
                 
                 {fotoExpandida.data_evento && (
                   <Typography variant="body2" color="text.secondary">
-                    Data da foto: {formatarData(fotoExpandida.data_evento)}
+                    Data da foto: {formatarDataHora(fotoExpandida.data_evento)}
                   </Typography>
                 )}
               </Box>

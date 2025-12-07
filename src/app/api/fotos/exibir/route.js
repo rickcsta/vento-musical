@@ -13,15 +13,15 @@ export async function GET() {
         f.evento_id,
         e.titulo AS evento_titulo,
         e.descricao AS evento_descricao,
-        e.data_evento AS evento_data,
+        e.datahora_evento AS evento_datahora,
         e.local AS evento_local
       FROM foto f
       LEFT JOIN evento e ON f.evento_id = e.id
       ORDER BY 
         CASE 
-          WHEN e.data_evento IS NOT NULL THEN e.data_evento
+          WHEN e.datahora_evento IS NOT NULL THEN e.datahora_evento
           WHEN f.data_evento IS NOT NULL THEN f.data_evento
-          ELSE '9999-12-31'::date
+          ELSE '9999-12-31'::timestamp
         END DESC,
         f.id DESC
     `);
@@ -42,7 +42,7 @@ export async function GET() {
           f.evento_id,
           e.titulo AS evento_titulo,
           e.descricao AS evento_descricao,
-          e.data_evento AS evento_data,
+          e.datahora_evento AS evento_datahora,
           e.local AS evento_local
         FROM foto f
         LEFT JOIN evento e ON f.evento_id = e.id

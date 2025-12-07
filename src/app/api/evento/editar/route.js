@@ -4,7 +4,7 @@ import pool from "@/lib/db";
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { titulo, descricao, data_evento, local, link_drive } = body;
+    const { titulo, descricao, datahora_evento, local, link_drive } = body;
 
     // Validação básica
     if (!titulo || !titulo.trim()) {
@@ -17,15 +17,15 @@ export async function POST(req) {
     const client = await pool.connect();
     
     const res = await client.query(
-      `INSERT INTO evento (titulo, descricao, data_evento, local, link_drive) 
+      `INSERT INTO evento (titulo, descricao, datahora_evento, local, link_drive) 
        VALUES ($1, $2, $3, $4, $5) 
-       RETURNING id, titulo, descricao, data_evento, local, link_drive`,
+       RETURNING id, titulo, descricao, datahora_evento, local, link_drive`,
       [
         titulo.trim() || null,
         descricao?.trim(), 
-        data_evento,
+        datahora_evento || null,
         local?.trim(),
-        link_drive.trim()
+        link_drive?.trim() || null
       ]
     );
 
@@ -45,7 +45,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, titulo, descricao, data_evento, local, link_drive} = body;
+    const { id, titulo, descricao, datahora_evento, local, link_drive } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -81,17 +81,17 @@ export async function PUT(req) {
       `UPDATE evento 
        SET titulo = $1,
            descricao = $2,
-           data_evento = $3,
+           datahora_evento = $3,
            local = $4,
-          link_drive = $5
+           link_drive = $5
        WHERE id = $6
-       RETURNING id, titulo, descricao, data_evento, local, link_drive`,
+       RETURNING id, titulo, descricao, datahora_evento, local, link_drive`,
       [
         titulo.trim() || null,
         descricao?.trim(),
-        data_evento,
+        datahora_evento || null,
         local?.trim(),
-        link_drive.trim(),
+        link_drive?.trim() || null,
         id
       ]
     );

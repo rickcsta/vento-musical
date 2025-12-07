@@ -35,6 +35,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import HistoryIcon from '@mui/icons-material/History';
 import UpcomingIcon from '@mui/icons-material/Upcoming';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 export default function EventosPage() {
   const [eventos, setEventos] = useState([]);
@@ -57,19 +58,18 @@ export default function EventosPage() {
   useEffect(() => {
     if (eventos.length > 0) {
       const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
       
       const futuros = eventos.filter(evento => {
-        if (!evento.data_evento) return false;
-        const dataEvento = new Date(evento.data_evento);
+        if (!evento.datahora_evento) return false;
+        const dataEvento = new Date(evento.datahora_evento);
         return dataEvento >= hoje;
-      }).sort((a, b) => new Date(a.data_evento) - new Date(b.data_evento));
+      }).sort((a, b) => new Date(a.datahora_evento) - new Date(b.datahora_evento));
       
       const passados = eventos.filter(evento => {
-        if (!evento.data_evento) return false;
-        const dataEvento = new Date(evento.data_evento);
+        if (!evento.datahora_evento) return false;
+        const dataEvento = new Date(evento.datahora_evento);
         return dataEvento < hoje;
-      }).sort((a, b) => new Date(b.data_evento) - new Date(a.data_evento));
+      }).sort((a, b) => new Date(b.datahora_evento) - new Date(a.datahora_evento));
       
       setEventosFuturos(futuros);
       setEventosPassados(passados);
@@ -152,53 +152,71 @@ export default function EventosPage() {
     setAbaAtiva(newValue);
   };
 
-  // Formatar data completa
-  const formatarData = (dataString) => {
-    if (!dataString) return 'Data a confirmar';
+  // Formatar data completa com hora
+  const formatarDataHora = (datahoraString) => {
+    if (!datahoraString) return 'Data e hora a confirmar';
     
     try {
-      const data = new Date(dataString);
+      const data = new Date(datahoraString);
       return data.toLocaleDateString('pt-BR', {
         weekday: 'long',
         day: '2-digit',
         month: 'long',
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        timeZone: 'America/Sao_Paulo'
       });
     } catch {
-      return dataString;
+      return datahoraString;
     }
   };
 
   // Formatar data curta
-  const formatarDataCurta = (dataString) => {
-    if (!dataString) return '';
+  const formatarDataCurta = (datahoraString) => {
+    if (!datahoraString) return '';
     
     try {
-      const data = new Date(dataString);
-      return data.toLocaleDateString('pt-BR');
+      const data = new Date(datahoraString);
+      return data.toLocaleDateString('pt-BR', {
+        timeZone: 'America/Sao_Paulo'
+      });
     } catch {
-      return dataString;
+      return datahoraString;
+    }
+  };
+
+  // Formatar hora
+  const formatarHora = (datahoraString) => {
+    if (!datahoraString) return '';
+    
+    try {
+      const data = new Date(datahoraString);
+      return data.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Sao_Paulo'
+      });
+    } catch {
+      return datahoraString;
     }
   };
 
   // Verificar se é evento futuro
-  const isEventoFuturo = (dataEvento) => {
-    if (!dataEvento) return false;
+  const isEventoFuturo = (datahoraEvento) => {
+    if (!datahoraEvento) return false;
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const data = new Date(dataEvento);
+    const data = new Date(datahoraEvento);
     return data >= hoje;
   };
 
   // Calcular dias até o evento
-  const calcularDiasAteEvento = (dataEvento) => {
-    if (!dataEvento) return null;
+  const calcularDiasAteEvento = (datahoraEvento) => {
+    if (!datahoraEvento) return null;
     
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const data = new Date(dataEvento);
+    const data = new Date(datahoraEvento);
     data.setHours(0, 0, 0, 0);
     
     const diffTime = data - hoje;
@@ -380,8 +398,8 @@ export default function EventosPage() {
       ) : (
         <Grid container spacing={3}>
           {eventosFiltrados.map((evento) => {
-            const isFuturo = isEventoFuturo(evento.data_evento);
-            const diasAteEvento = calcularDiasAteEvento(evento.data_evento);
+            const isFuturo = isEventoFuturo(evento.datahora_evento);
+            const diasAteEvento = calcularDiasAteEvento(evento.datahora_evento);
             
             return (
               <Grid item xs={12} key={evento.id}>
@@ -413,19 +431,30 @@ export default function EventosPage() {
                         </Box>
                         
                         <Grid container spacing={2} sx={{ mt: 1 }}>
-                          {evento.data_evento && (
-                            <Grid item xs={12} sm={6} md={3}>
+                          {evento.datahora_evento && (
+                            <Grid item xs={12} sm={6} md={4}>
                               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <CalendarTodayIcon sx={{ mr: 1, color: 'text.secondary' }} />
                                 <Typography variant="body1">
-                                  <strong>Data:</strong> {formatarDataCurta(evento.data_evento)}
+                                  <strong>Data:</strong> {formatarDataCurta(evento.datahora_evento)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          )}
+                          
+                          {evento.datahora_evento && (
+                            <Grid item xs={12} sm={6} md={4}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <AccessTimeIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                                <Typography variant="body1">
+                                  <strong>Hora:</strong> {formatarHora(evento.datahora_evento)}
                                 </Typography>
                               </Box>
                             </Grid>
                           )}
                           
                           {evento.local && (
-                            <Grid item xs={12} sm={6} md={3}>
+                            <Grid item xs={12} sm={6} md={4}>
                               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <LocationOnIcon sx={{ mr: 1, color: 'text.secondary' }} />
                                 <Typography variant="body1">
@@ -503,18 +532,32 @@ export default function EventosPage() {
                 <Divider sx={{ my: 2 }} />
                 
                 <Box sx={{ mb: 3 }}>
-                  {eventoExpandido.data_evento && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <CalendarTodayIcon sx={{ mr: 2, color: 'primary.main' }} />
-                      <Box>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Data e Hora
-                        </Typography>
-                        <Typography variant="body1">
-                          {formatarData(eventoExpandido.data_evento)}
-                        </Typography>
+                  {eventoExpandido.datahora_evento && (
+                    <>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <CalendarTodayIcon sx={{ mr: 2, color: 'primary.main' }} />
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Data
+                          </Typography>
+                          <Typography variant="body1">
+                            {formatarDataCurta(eventoExpandido.datahora_evento)}
+                          </Typography>
+                        </Box>
                       </Box>
-                    </Box>
+                      
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <AccessTimeIcon sx={{ mr: 2, color: 'primary.main' }} />
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Hora
+                          </Typography>
+                          <Typography variant="body1">
+                            {formatarHora(eventoExpandido.datahora_evento)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </>
                   )}
                   
                   {eventoExpandido.local && (
@@ -531,7 +574,7 @@ export default function EventosPage() {
                     </Box>
                   )}
                   
-                  {isEventoFuturo(eventoExpandido.data_evento) && (
+                  {isEventoFuturo(eventoExpandido.datahora_evento) && (
                     <Box sx={{ 
                       backgroundColor: 'success.light', 
                       color: 'success.dark',
@@ -541,6 +584,28 @@ export default function EventosPage() {
                     }}>
                       <Typography variant="body2">
                         🎵 <strong>Evento Futuro</strong> - Em breve!
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {eventoExpandido.link_drive && (
+                    <Box sx={{ 
+                      backgroundColor: 'info.light', 
+                      color: 'info.dark',
+                      p: 2,
+                      borderRadius: 1,
+                      mb: 2
+                    }}>
+                      <Typography variant="body2">
+                        📁 <strong>Fotos disponíveis:</strong>{' '}
+                        <a 
+                          href={eventoExpandido.link_drive} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ color: 'inherit', textDecoration: 'underline' }}
+                        >
+                          Acessar fotos no Google Drive
+                        </a>
                       </Typography>
                     </Box>
                   )}

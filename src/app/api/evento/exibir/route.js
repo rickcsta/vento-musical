@@ -8,11 +8,11 @@ export async function GET() {
         id,
         titulo,
         descricao,
-        data_evento,
+        datahora_evento,
         local,
         link_drive
       FROM evento
-      ORDER BY data_evento DESC, titulo ASC
+      ORDER BY datahora_evento DESC NULLS LAST, titulo ASC
     `);
 
     return NextResponse.json(res.rows);
