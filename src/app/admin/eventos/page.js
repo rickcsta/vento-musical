@@ -35,6 +35,7 @@ export default function GerenciarEventos() {
   const [openConfirmDelete, setOpenConfirmDelete] = useState(false);
   const [eventoParaExcluir, setEventoParaExcluir] = useState(null);
 
+
   // Carregar dados
   useEffect(() => {
     carregarEventos();
@@ -88,43 +89,47 @@ export default function GerenciarEventos() {
     contarFotosPorEvento();
   }, [eventos]);
 
-  const handleOpenDialog = (evento = null) => {
-    if (evento) {
-      setEditingEvento(evento);
-      
-      // Separar data e hora se existir uma datahora_evento
-      let dataPart = '';
-      let horaPart = '';
-      
-      if (evento.datahora_evento) {
-        const datahora = new Date(evento.datahora_evento);
-        dataPart = datahora.toISOString().split('T')[0];
-        horaPart = datahora.toTimeString().slice(0, 5); // Formato HH:MM
-      } else if (evento.data_evento) {
-        dataPart = evento.data_evento.split('T')[0];
-      }
-      
-      setNovoEvento({
-        titulo: evento.titulo || '',
-        descricao: evento.descricao || '',
-        data_evento: dataPart || '',
-        hora_evento: horaPart || '',
-        local: evento.local || '',
-        link_drive: evento.link_drive || ''
-      });
-    } else {
-      setEditingEvento(null);
-      setNovoEvento({ 
-        titulo: '', 
-        descricao: '', 
-        data_evento: '', 
-        hora_evento: '',
-        local: '',
-        link_drive: ''
-      });
+const handleOpenDialog = (evento = null) => {
+  if (evento) {
+    setEditingEvento(evento);
+
+    let dataPart = "";
+    let horaPart = "";
+
+    if (evento.datahora_evento) {
+      const d = new Date(evento.datahora_evento);
+
+      // Pega data no formato correto
+      dataPart = d.toISOString().split("T")[0];
+
+      // Extrai somente HH:mm
+      horaPart = d.toISOString().split("T")[1].slice(0, 5);
     }
-    setOpenDialog(true);
-  };
+
+    setNovoEvento({
+      titulo: evento.titulo || "",
+      descricao: evento.descricao || "",
+      data_evento: dataPart,
+      hora_evento: horaPart,
+      local: evento.local || "",
+      link_drive: evento.link_drive || ""
+    });
+
+  } else {
+    setEditingEvento(null);
+    setNovoEvento({
+      titulo: "",
+      descricao: "",
+      data_evento: "",
+      hora_evento: "",
+      local: "",
+      link_drive: ""
+    });
+  }
+
+  setOpenDialog(true);
+};
+
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
