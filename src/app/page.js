@@ -125,41 +125,53 @@ export default function HomePage() {
   };
 
   if (dados.carregando) {
-    return (
-      <Box sx={{ 
+  return (
+    <Box
+      sx={{ 
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center', 
         justifyContent: 'center', 
         minHeight: '60vh',
         background: 'linear-gradient(135deg, #f8fdf8 0%, #ffffff 100%)'
-      }}>
-        <Box sx={{ position: 'relative' }}>
-          <CircularProgress 
-            size={80} 
-            thickness={2}
-            sx={{ 
-              color: '#1B5E20',
-              animation: `${pulseAnimation} 2s infinite`
-            }} 
-          />
-          <MusicNoteIcon 
-            sx={{ 
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              fontSize: 30,
-              color: '#1B5E20'
-            }} 
-          />
-        </Box>
-        <Typography variant="h6" sx={{ mt: 3, color: '#2E7D32', fontWeight: 500 }}>
-          Carregando conteúdo musical...
-        </Typography>
+      }}
+    >
+      <Box
+        sx={{
+          position: 'relative',
+          width: 100,
+          height: 100,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: `${pulseAnimation} 2s infinite`,
+        }}
+      >
+        <CircularProgress
+          size={80}
+          thickness={2}
+          sx={{ color: '#1B5E20' }}
+        />
+
+        <MusicNoteIcon
+          sx={{
+            position: 'absolute',
+            fontSize: 30,
+            color: '#1B5E20',
+          }}
+        />
       </Box>
-    );
-  }
+
+      <Typography
+        variant="h6"
+        sx={{ mt: 3, color: '#2E7D32', fontWeight: 500 }}
+      >
+        Carregando conteúdo musical...
+      </Typography>
+    </Box>
+  );
+}
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
